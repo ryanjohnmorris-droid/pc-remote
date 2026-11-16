@@ -1,6 +1,6 @@
 # PC Remote
 
-Control your Windows PC from your phone: trackpad, keyboard, media keys, open apps, see your screen, and sleep or shut down. It works on iPhone and Android, and you don't need an App Store app.
+Control your Windows PC from your phone: trackpad, keyboard, media keys, open apps, see your screen, and sleep or shut down. It works on iPhone and Android, including Samsung Galaxy phones, foldables and tablets with Samsung Internet or Chrome, and you don't need an App Store app.
 
 <p>
   <img src="screenshots/trackpad.png" width="240" alt="Trackpad with live screen preview">
@@ -26,7 +26,8 @@ Control your Windows PC from your phone: trackpad, keyboard, media keys, open ap
 4. The window shows a link like `http://192.168.1.20:8765/?k=abcd2345ef`. Open it in the browser on your phone. The phone must be on the **same Wi-Fi**.
 5. Add it to your Home Screen:
    - **iPhone:** Share → **Add to Home Screen**
-   - **Android:** ⋮ menu → **Add to Home screen**
+   - **Android (Chrome):** ⋮ menu → **Add to Home screen**
+   - **Samsung Internet:** ≡ menu → **Add page to** → **Home screen**
 
 **Start with Windows (optional):** right-click `server.py` → **Create shortcut**. Press `Win + R`, type `shell:startup` and move the shortcut into that folder.
 
@@ -38,6 +39,8 @@ Control your Windows PC from your phone: trackpad, keyboard, media keys, open ap
 | **PC not reachable / site can't be reached** | Make sure the phone is on the same Wi-Fi (not mobile data or a guest network). Allow Python through Windows Firewall, or run this in an admin terminal: `netsh advfirewall firewall add rule name="PC Remote" dir=in action=allow protocol=TCP localport=8765`. Some routers block devices from talking to each other ("AP/client isolation"); turn that off in the router settings. |
 | **Smart App Control blocks a file** | Double-click `server.py` directly. It runs with Python, which Windows trusts. |
 | **Screen is black** | Some full-screen games can't be captured this way. |
+| **Link opens inside Discord / another app and fails** | Open Chrome or Samsung Internet yourself and type the link in, starting with `http://`. |
+| **Samsung: page won't load** | Turn off **Secure Wi-Fi** or any VPN on the phone (Settings → Connections), and make sure the phone isn't set to switch to mobile data. |
 
 ## Security
 

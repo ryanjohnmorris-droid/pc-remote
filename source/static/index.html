@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PC Remote">
 <meta name="theme-color" content="#111317">
+<!-- tell Samsung Internet / Chrome the page is already dark, so their forced "dark mode" leaves it alone -->
+<meta name="color-scheme" content="dark">
+<meta name="darkreader-lock">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -18,8 +21,13 @@
     --text: #e8eaef; --muted: #8b919c; --danger: #e5484d; --radius: 14px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-    font: 16px -apple-system, system-ui, sans-serif; overscroll-behavior: none; }
+    font: 16px -apple-system, system-ui, "Samsung One", "SamsungOne", Roboto, sans-serif;
+    overscroll-behavior: none;  /* no pull-to-refresh while using the trackpad */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;  /* ignore big "text size" settings that break the layout */ }
+  html, body { height: 100dvh; }  /* fit between Samsung Internet's top and bottom bars */
+  html { overflow: hidden; }
   body { display: flex; flex-direction: column;
     padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); user-select: none;
     -webkit-user-select: none; }
