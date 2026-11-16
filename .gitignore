@@ -1,0 +1,4 @@
+# the per-PC access key - never commit this
+config.json
+__pycache__/
+*.pyc
