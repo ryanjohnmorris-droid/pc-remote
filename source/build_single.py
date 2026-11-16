@@ -3,7 +3,7 @@ import base64, json, pathlib
 here = pathlib.Path(__file__).parent
 s = (here / "server.py").read_text()
 assets = {n: base64.b64encode((here / "static" / n).read_bytes()).decode()
-          for n in ["index.html", "manifest.json", "icon.svg", "apple-touch-icon.png"]}
+          for n in ["index.html", "manifest.json", "icon.svg", "apple-touch-icon.png", "icon-192.png", "icon-512.png"]}
 old_get = s[s.index("    def do_GET(self):"):s.index("    def do_POST(self):")]
 s = s.replace(old_get, '''    def do_GET(self):
         path = urlparse(self.path).path

@@ -348,20 +348,41 @@
     send({ t: "key", k: parts.pop(), mods: parts });
   }));
 
+  // Live typing. Android keyboards (Gboard, Samsung) type in "compositions" that can't be
+  // intercepted key by key, so instead we compare the box before/after each change and send
+  // the difference: removed characters become Backspace, new characters are typed.
+  // The box always starts with one space, so Backspace works even when it looks empty.
   const typer = $("#typer");
-  typer.addEventListener("beforeinput", e => {
-    e.preventDefault();
-    const it = e.inputType;
-    if (it === "insertText" || it === "insertReplacementText" || it === "insertFromPaste") {
-      const s = e.data ?? (e.dataTransfer && e.dataTransfer.getData("text")) ?? "";
-      if (!s) return;
-      if (mods.size && s.length === 1 && /[a-z0-9]/i.test(s)) send({ t: "key", k: s.toLowerCase(), mods: takeMods() });
-      else send({ t: "text", s });
-    } else if (it === "deleteContentBackward") send({ t: "key", k: "backspace", mods: takeMods() });
-    else if (it === "deleteContentForward") send({ t: "key", k: "delete" });
-    else if (it === "insertLineBreak" || it === "insertParagraph") send({ t: "key", k: "enter" });
+  const BASE = " ";
+  let typed = BASE, composing = false;
+  const resetTyper = () => { typer.value = BASE; typed = BASE; };
+  resetTyper();
+  typer.addEventListener("compositionstart", () => { composing = true; });
+  typer.addEventListener("compositionend", () => { composing = false; syncTyper(); });
+  typer.addEventListener("input", syncTyper);
+  function syncTyper() {
+    const now = typer.value;
+    let same = 0;
+    while (same < typed.length && same < now.length && typed[same] === now[same]) same++;
+    const removed = typed.length - same, added = now.slice(same);
+    for (let i = 0; i < removed; i++) send({ t: "key", k: "backspace", mods: i === 0 ? takeMods() : [] });
+    if (added) {
+      if (mods.size && added.length === 1 && /[a-z0-9]/i.test(added)) send({ t: "key", k: added.toLowerCase(), mods: takeMods() });
+      else send({ t: "text", s: added });
+    }
+    typed = now;
+    // keep the box short, and keep the leading space so Backspace always has something to delete
+    if (!composing && (now === "" || now.length > 40)) resetTyper();
+  }
+  typer.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); send({ t: "key", k: "enter" }); resetTyper(); }
   });
-  typer.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); send({ t: "key", k: "enter" }); } });
+  typer.addEventListener("focus", () => setTimeout(() => {
+    try { typer.setSelectionRange(typer.value.length, typer.value.length); } catch {}
+  }, 0));
+
+  // a little buzz on button taps (Android; iPhones ignore this)
+  document.addEventListener("click", e => { if (e.target.closest("button")) navigator.vibrate?.(8); });
 
   $("#sendBulk").addEventListener("click", () => {
     const bulk = $("#bulk");
