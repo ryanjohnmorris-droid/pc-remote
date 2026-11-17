@@ -1544,8 +1544,33 @@ class Handler(BaseHTTPRequestHandler):
             if op in (0x0, 0x1):   # text (or continuation)
                 msg += data
                 if fin:
-                    self._run_json(msg)
+                    self._ws_handle(msg)
                     msg = b""
+
+    def _ws_handle(self, raw):
+        # Run the commands, then always answer right away with where the pointer is.
+        # Answering every message also stops the network from holding back the next
+        # small mouse message while it waits for an acknowledgement (Nagle/delayed-ACK).
+        try:
+            cmds = json.loads(raw or b"[]")
+        except ValueError:
+            return
+        reply = {}
+        for c in (cmds if isinstance(cmds, list) else [cmds])[:300]:
+            if not isinstance(c, dict):
+                continue
+            if c.get("t") == "ping":
+                reply["pong"] = c.get("id")
+                continue
+            try:
+                run_command(c)
+            except Exception as e:
+                print(" command failed:", c.get("t"), e)
+        try:
+            reply["c"] = list(cursor_pos())
+        except Exception:
+            pass
+        self._ws_send(0x1, json.dumps(reply).encode())
 
     def _run_json(self, raw):
         try:

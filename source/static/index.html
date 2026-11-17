@@ -542,10 +542,25 @@
   function connectWS() {
     if (!KEY || ws || document.hidden) return;
     try { ws = new WebSocket(`ws://${location.host}/ws?k=${encodeURIComponent(KEY)}`); } catch { ws = null; return; }
-    ws.onopen = () => { wsReady = true; wsRetry = 0; setStatus(true, "Connected"); flush(); };
+    ws.onopen = () => { wsReady = true; wsRetry = 0; setStatus(true, "Connected"); flush(); ping(); };
+    ws.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch { return; }
+      if (m.pong != null && pings[m.pong]) { showDelay(performance.now() - pings[m.pong]); delete pings[m.pong]; }
+      // the PC's real pointer position; while the finger is moving we trust our own prediction
+      if (m.c && performance.now() - lastLocalMove > 250) { cursorPos = m.c; placeCursor(); }
+    };
     ws.onclose = () => { wsReady = false; ws = null; if (!document.hidden) setTimeout(connectWS, Math.min(8000, 800 * ++wsRetry)); };
     ws.onerror = () => {};
   }
+  // round-trip delay, shown next to "Connected" so lag can be seen, not guessed
+  const pings = {}; let pingId = 0, delays = [];
+  function ping() { if (!wsReady) return; pings[++pingId] = performance.now(); send({ t: "ping", id: pingId }); }
+  function showDelay(ms) {
+    delays = [...delays.slice(-4), ms];
+    const avg = Math.round(delays.reduce((a, b) => a + b, 0) / delays.length);
+    setStatus(true, `Connected · ${avg} ms`);
+  }
+  setInterval(() => { if (!document.hidden) ping(); }, 2000);
   const MERGE = new Set(["move", "scroll"]), REPLACE = new Set(["volume"]);
   function send(cmd) {
     const last = queue[queue.length - 1];
@@ -567,7 +582,7 @@
     try {
       const r = await fetch("/api", { method: "POST", headers: { "X-Key": KEY, "Content-Type": "application/json" }, body: JSON.stringify(batch) });
       if (r.status === 403) setStatus(false, "Wrong key");
-      else setStatus(r.ok, r.ok ? "Connected" : "Error " + r.status);
+      else setStatus(r.ok, r.ok ? "Connected (slow mode)" : "Error " + r.status);
     } catch { setStatus(false, "PC not reachable"); }
     busy = false;
     if (queue.length) flush();
@@ -577,7 +592,8 @@
     if (!KEY) return;
     try {
       const info = await api("/api/info");
-      setStatus(true, "Connected");
+      if (!wsReady) setStatus(true, "Connected (slow mode)");
+      else if (!delays.length) setStatus(true, "Connected");
       $("#pcName").textContent = info.name ? " · " + info.name : "";
       rememberThisPC(info.name);
     } catch (e) { if (e.message !== "wrong key") setStatus(false, "PC not reachable"); }
@@ -627,6 +643,12 @@
   speed.addEventListener("input", () => store.set("speed2", speed.value));
   const center = t => { let x = 0, y = 0; for (const p of t) { x += p.clientX; y += p.clientY; } return { x: x / t.length, y: y / t.length, n: t.length }; };
   let last = null, start = 0, moved = 0, maxTouches = 0, lastT = 0, rx = 0, ry = 0, sx = 0, sy = 0;
+  let padDown = false, padUpAt = 0, lastLocalMove = 0;
+  // move the pointer drawn on the phone straight away, without waiting for the PC
+  function nudgeCursor(dx, dy) {
+    lastLocalMove = performance.now();
+    if (cursorPos) { cursorPos = [cursorPos[0] + dx, cursorPos[1] + dy]; placeCursor(); }
+  }
   // Speed curve: slow finger = precise (small steps), fast flick = covers the screen.
   function gain(dist, dt) {
     const v = dist / Math.max(dt, 4);                        // finger speed in px per ms
@@ -636,6 +658,7 @@
   pad.addEventListener("touchstart", e => {
     e.preventDefault();
     if (!maxTouches) { start = performance.now(); moved = 0; rx = ry = sx = sy = 0; }
+    padDown = true;
     maxTouches = Math.max(maxTouches, e.touches.length);
     last = center(e.touches); lastT = e.timeStamp;
   }, { passive: false });
@@ -650,7 +673,7 @@
       rx += dx * g; ry += dy * g;                            // keep the fractions so slow moves still move
       const ix = Math.trunc(rx), iy = Math.trunc(ry);
       rx -= ix; ry -= iy;
-      if (ix || iy) send({ t: "move", dx: ix, dy: iy });
+      if (ix || iy) { send({ t: "move", dx: ix, dy: iy }); nudgeCursor(ix, iy); }
     } else {
       sx += dx * 4; sy += -dy * 4;
       const ix = Math.trunc(sx), iy = Math.trunc(sy);
@@ -663,9 +686,9 @@
     e.preventDefault();
     if (e.touches.length) { last = center(e.touches); lastT = e.timeStamp; return; }
     if (performance.now() - start < 250 && moved < 12) send({ t: "button", b: maxTouches >= 2 ? "right" : "left", a: "click" });
-    maxTouches = 0; last = null;
+    maxTouches = 0; last = null; padDown = false; padUpAt = performance.now();
   }, { passive: false });
-  pad.addEventListener("touchcancel", () => { maxTouches = 0; last = null; });
+  pad.addEventListener("touchcancel", () => { maxTouches = 0; last = null; padDown = false; padUpAt = performance.now(); });
   $$("[data-btn]").forEach(b => b.addEventListener("click", () => send({ t: "button", b: b.dataset.btn, a: "click" })));
   const drag = $("#drag");
   drag.addEventListener("click", () => {
@@ -811,8 +834,11 @@
     if (streaming) return;
     streaming = true;
     while (screenShowing()) {
+      // While a finger is on the trackpad, don't download pictures: they would compete with
+      // the mouse for the Wi-Fi and the PC. The pointer on the picture still moves live.
+      if (current === "v-pad" && (padDown || performance.now() - padUpAt < 400)) { await sleep(50); continue; }
       const started = performance.now(), mini = screenWrap.classList.contains("mini");
-      const w = Math.min(1600, Math.round(screenWrap.clientWidth * Math.min(devicePixelRatio || 2, 2.5)));
+      const w = Math.min(mini ? 720 : 1600, Math.round(screenWrap.clientWidth * Math.min(devicePixelRatio || 2, 2.5)));
       try {
         const r = await fetch(`/api/screen?mode=${screenMode}&w=${w}`, { method: "POST", headers: { "X-Key": KEY } });
         if (!r.ok) throw new Error(r.status === 403 ? "wrong key" : "error " + r.status);
@@ -822,7 +848,7 @@
         await new Promise(res => { screenImg.onload = screenImg.onerror = res; screenImg.src = url; });
         if (lastUrl) URL.revokeObjectURL(lastUrl);
         lastUrl = url; screenRect = rect.length === 4 ? rect : null;
-        cursorPos = cur.length === 2 && !cur.some(isNaN) ? cur : null;
+        if (performance.now() - lastLocalMove > 250) cursorPos = cur.length === 2 && !cur.some(isNaN) ? cur : null;
         screenImg.style.display = "block"; screenMsg.style.display = "none";
         placeCursor();
       } catch (e) {
