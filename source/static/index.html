@@ -17,49 +17,92 @@
 <title>PC Remote</title>
 <style>
   :root {
-    --bg: #111317; --panel: #1b1e24; --btn: #262a32; --btn-on: #3a7afe;
-    --text: #e8eaef; --muted: #8b919c; --danger: #e5484d; --radius: 14px;
+    --bg: #111317; --panel: #1b1e24; --btn: #262a32; --btn-on: #3a7afe; --line: #2f343d;
+    --text: #e8eaef; --muted: #8b919c; --danger: #e5484d; --ok: #30a46c; --radius: 14px;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 16px -apple-system, system-ui, "Samsung One", "SamsungOne", Roboto, sans-serif;
     overscroll-behavior: none;  /* no pull-to-refresh while using the trackpad */
-    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;  /* ignore big "text size" settings that break the layout */ }
-  html, body { height: 100dvh; }  /* fit between Samsung Internet's top and bottom bars */
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  html, body { height: 100dvh; }  /* fit between mobile browser bars */
   html { overflow: hidden; }
-  body { display: flex; flex-direction: column;
-    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); user-select: none;
-    -webkit-user-select: none; }
-  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  #status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  body { display: flex; flex-direction: column; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    user-select: none; -webkit-user-select: none; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; gap: 10px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pcName { color: var(--muted); font-weight: 500; font-size: 14px; margin-left: 4px; }
+  #status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; flex: none; }
   #status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  #status.ok::before { background: #30a46c; }
+  #status.ok::before { background: var(--ok); }
   #status.err::before { background: var(--danger); }
-  main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0 16px; gap: 12px; }
-  .view { display: none; flex: 1; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
-  .preview-slot { flex: none; height: 30vh; display: flex; flex-direction: column; }
-  .preview-slot.big { flex: 1; height: auto; min-height: 0; }
-  .preview-slot.collapsed { height: auto; }
-  .preview-slot:empty { display: none; }
-  #v-pad #pad { min-height: 140px; }
+  main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0 16px; }
+  .view { display: none; flex: 1; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto;
+    padding-bottom: 12px; -webkit-overflow-scrolling: touch; }
   .view.active { display: flex; }
   nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #2a2e36; }
   nav button { background: none; border: 0; color: var(--muted); padding: 10px 0 12px; font-size: 11px;
-    display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: inherit; }
   nav button span { font-size: 22px; line-height: 1; }
   nav button.active { color: var(--btn-on); }
-  button.k { background: var(--btn); color: var(--text); border: 0; border-radius: var(--radius);
+
+  .k { background: var(--btn); color: var(--text); border: 0; border-radius: var(--radius);
     font-size: 16px; padding: 14px 8px; min-height: 52px; font-family: inherit; }
-  button.k:active, button.k.on { background: var(--btn-on); }
-  button.k.danger { color: #ff8a8d; }
-  button.k.big { font-size: 26px; }
+  .k:active, .k.on { background: var(--btn-on); }
+  .k.danger { color: #ff8a8d; }
+  .k.big { font-size: 26px; }
+  .k.primary { background: var(--btn-on); }
+  .k.small { min-height: 40px; padding: 8px 12px; font-size: 14px; }
+  .k:disabled { opacity: .45; }
   .row { display: grid; gap: 10px; grid-template-columns: repeat(var(--n, 3), 1fr); }
+  .field { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px; font: inherit; font-size: 16px; outline: none;
+    user-select: text; -webkit-user-select: text; }
+  .field:focus { border-color: var(--btn-on); }
+  textarea.field { resize: none; min-height: 90px; }
+  select.field { appearance: none; -webkit-appearance: none; }
+  p.hint, .hint { color: var(--muted); font-size: 13px; margin: 0; line-height: 1.45; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
+  .card { background: var(--panel); border-radius: var(--radius); padding: 14px; }
+  .slider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+  .slider input { flex: 1; }
+  input[type=range] { accent-color: var(--btn-on); }
+
+  /* sub-pages under "More" */
+  .subhead { display: flex; align-items: center; gap: 6px; margin-top: -2px; }
+  .subhead .back { background: none; border: 0; color: var(--btn-on); font: inherit; font-size: 16px; padding: 6px 8px 6px 0; }
+  .subhead h3 { margin: 0; font-size: 18px; font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { background: var(--btn); border: 0; border-radius: var(--radius); color: var(--text); font: inherit;
+    font-size: 13px; padding: 14px 6px 12px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tile span { font-size: 26px; line-height: 1; }
+  .tile:active { background: var(--btn-on); }
+
+  /* lists */
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item { display: flex; align-items: center; gap: 12px; background: var(--btn); border-radius: var(--radius);
+    padding: 8px 8px 8px 10px; transition: background .2s; min-height: 56px; }
+  .item .main { flex: 1; display: flex; align-items: center; gap: 12px; background: none; border: 0; color: var(--text);
+    font: inherit; text-align: left; padding: 4px 0; min-width: 0; text-decoration: none; }
+  .item .txt { min-width: 0; display: flex; flex-direction: column; }
+  .item .txt b, .item .txt small, .item .one { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .txt b { font-weight: 600; }
+  .item .txt small { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .item.flash { background: var(--btn-on); }
+  .icon-btn { background: none; border: 0; color: var(--muted); font-size: 20px; padding: 8px 10px; font-family: inherit; }
+  .avatar { width: 38px; height: 38px; border-radius: 10px; flex: none; display: grid; place-items: center;
+    font-weight: 700; font-size: 17px; color: #fff; }
+  .star { background: none; border: 0; font-size: 22px; color: #4a4f59; padding: 6px 8px; }
+  .star.on { color: #f5c542; }
+
+  /* trackpad */
   #pad { flex: 1; background: var(--panel); border-radius: var(--radius); touch-action: none;
     display: flex; align-items: center; justify-content: center; color: #4a4f59; font-size: 14px;
-    text-align: center; line-height: 1.6; min-height: 200px; }
-  #typer { width: 100%; background: var(--panel); color: var(--text); border: 1px solid #2f343d;
+    text-align: center; line-height: 1.6; min-height: 140px; }
+
+  /* keyboard */
+  #typer { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 14px; font-size: 18px; min-height: 52px; outline: none;
     user-select: text; -webkit-user-select: text; }
   #typer:focus { border-color: var(--btn-on); }
@@ -68,32 +111,12 @@
   .typewrap.empty::after { content: attr(data-hint); position: absolute; left: 15px; right: 15px; top: 50%;
     transform: translateY(-50%); color: var(--muted); font-size: 18px; pointer-events: none;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  textarea#bulk { width: 100%; flex: 1; min-height: 90px; background: var(--panel); color: var(--text);
-    border: 1px solid #2f343d; border-radius: var(--radius); padding: 12px; font: inherit; resize: none;
-    user-select: text; -webkit-user-select: text; }
-  label.hint, p.hint { color: var(--muted); font-size: 13px; margin: 0; }
-  .slider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
-  .slider input { flex: 1; }
-  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 0; }
-  #appSearch { flex: 1; background: var(--panel); color: var(--text); border: 1px solid #2f343d;
-    border-radius: var(--radius); padding: 12px 14px; font-size: 16px; outline: none; min-width: 0;
-    user-select: text; -webkit-user-select: text; }
-  #appSearch:focus { border-color: var(--btn-on); }
-  .searchrow { display: flex; gap: 10px; }
-  .searchrow button.k { min-height: 0; padding: 0 16px; }
-  #appList { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; display: flex;
-    flex-direction: column; gap: 8px; padding-bottom: 8px; }
-  .app { display: flex; align-items: center; gap: 12px; background: var(--btn); border-radius: var(--radius);
-    padding: 8px 8px 8px 10px; transition: background .2s; }
-  .app .open { flex: 1; display: flex; align-items: center; gap: 12px; background: none; border: 0;
-    color: var(--text); font: inherit; text-align: left; padding: 4px 0; min-width: 0; }
-  .app .open span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .app.launched { background: var(--btn-on); }
-  .avatar { width: 38px; height: 38px; border-radius: 10px; flex: none; display: grid; place-items: center;
-    font-weight: 700; font-size: 17px; color: #fff; }
-  .star { background: none; border: 0; font-size: 22px; color: #4a4f59; padding: 6px 8px; }
-  .star.on { color: #f5c542; }
-  #appList h2 { margin: 6px 0 2px; }
+
+  /* live screen picture */
+  .preview-slot { flex: none; height: 30vh; display: flex; flex-direction: column; }
+  .preview-slot.big { flex: 1; height: auto; min-height: 0; }
+  .preview-slot.collapsed { height: auto; }
+  .preview-slot:empty { display: none; }
   #screenWrap { flex: 1; min-height: 0; background: #000; border-radius: var(--radius); overflow: hidden;
     display: flex; align-items: center; justify-content: center; position: relative; }
   #screenImg { display: none; max-width: 100%; max-height: 100%; touch-action: none;
@@ -104,26 +127,76 @@
   #pvHide { position: absolute; top: 6px; right: 6px; display: none; background: rgba(0,0,0,.55);
     color: #fff; border: 0; border-radius: 10px; font-size: 12px; padding: 6px 10px; font-family: inherit; }
   #screenWrap.mini #pvHide { display: block; }
-  button.k.pv-show { min-height: 40px; padding: 8px; font-size: 14px; color: var(--muted); width: 100%; }
-  #v-screen .row button.k { min-height: 44px; padding: 10px 6px; font-size: 15px; }
-  /* phone turned sideways: give the picture as much room as possible */
+  .k.pv-show { min-height: 40px; padding: 8px; font-size: 14px; color: var(--muted); width: 100%; }
+  #v-screen .row .k { min-height: 44px; padding: 10px 6px; font-size: 15px; }
+
+  /* now playing */
+  .np { display: none; align-items: center; gap: 14px; }
+  .np.show { display: flex; }
+  .np img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--btn); flex: none; }
+  .np .txt { min-width: 0; flex: 1; }
+  .np b, .np small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .np small { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .vol { display: flex; align-items: center; gap: 10px; }
+  .vol input { flex: 1; height: 32px; }
+  .vol .num { width: 38px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
+
+  /* stats */
+  .meter { height: 8px; border-radius: 4px; background: var(--btn); overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; background: var(--btn-on); border-radius: 4px; transition: width .5s; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; }
+  .stat b { font-size: 22px; font-variant-numeric: tabular-nums; }
+
+  /* files */
+  .prog { height: 4px; border-radius: 2px; background: var(--line); margin-top: 6px; overflow: hidden; }
+  .prog i { display: block; height: 100%; width: 0; background: var(--btn-on); }
+
+  /* timer */
+  .big-time { font-size: 40px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; margin: 4px 0; }
+
+  /* presentation */
+  .present { flex: 1; display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; min-height: 220px; }
+  .present .k { font-size: 22px; }
+
+  /* game pad */
+  .gp { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: center; min-height: 260px; }
+  .dpad, .abtn { display: grid; gap: 8px; touch-action: none; }
+  .dpad { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); aspect-ratio: 1; }
+  .abtn { grid-template-columns: repeat(2, 1fr); align-content: center; }
+  .gk { background: var(--btn); border: 0; border-radius: 16px; color: var(--text); font: inherit; font-size: 18px;
+    font-weight: 600; touch-action: none; min-height: 58px; }
+  .gk.down { background: var(--btn-on); }
+  .dpad .gk:nth-child(1) { grid-area: 1 / 2; } .dpad .gk:nth-child(2) { grid-area: 2 / 1; }
+  .dpad .gk:nth-child(3) { grid-area: 2 / 3; } .dpad .gk:nth-child(4) { grid-area: 3 / 2; }
+
+  /* phone turned sideways */
   @media (orientation: landscape) and (max-height: 500px) {
-    body:has(#v-screen.active) header, #v-screen .hint, #v-screen .row { display: none; }
-    body:has(#v-screen.active) nav button { padding: 4px 0; flex-direction: row; justify-content: center; }
-    body:has(#v-screen.active) main { padding-top: 6px; }
+    body:has(#v-screen.active) header, #v-screen .hint, #v-screen .row,
+    body:has(#v-gamepad.active) header, #v-gamepad .hint, #v-gamepad .subhead { display: none; }
+    body:has(#v-screen.active) nav button, body:has(#v-gamepad.active) nav button { padding: 4px 0; flex-direction: row; justify-content: center; }
+    body:has(#v-screen.active) main, body:has(#v-gamepad.active) main { padding-top: 6px; }
+    #v-gamepad { overflow: hidden; }
+    #v-gamepad .gp { min-height: 0; height: 100%; align-content: stretch; grid-template-columns: 1fr 1fr; }
+    #v-gamepad .dpad { aspect-ratio: auto; height: 100%; min-height: 0; max-width: 300px; justify-self: center; width: 100%; }
+    #v-gamepad .abtn { height: 100%; grid-auto-rows: 1fr; }
+    #v-gamepad .gk { min-height: 0; }
   }
   #nokey { display: none; padding: 24px 16px; color: var(--muted); line-height: 1.5; }
+  #toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: #2c3140; color: var(--text); padding: 10px 16px; border-radius: 12px; font-size: 14px;
+    opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; text-align: center; z-index: 9; }
+  #toast.show { opacity: 1; }
 </style>
 </head>
 <body>
 <header>
-  <h1>PC Remote</h1>
+  <h1>PC Remote<span id="pcName"></span></h1>
   <div id="status">Connecting…</div>
 </header>
 
 <div id="nokey">
   <strong style="color:var(--text)">Missing access key.</strong><br>
-  Open the full link that <code>server.py</code> prints on your PC. It ends in <code>?k=…</code>.
+  Scan the QR code in the PC Remote window on your PC, or type the full link it shows (it ends in <code>?k=…</code>).
 </div>
 
 <main>
@@ -136,15 +209,14 @@
       <button class="k" id="drag">Hold</button>
       <button class="k" data-btn="right">Right</button>
     </div>
-    <div class="slider">Speed <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.8"></div>
+    <div class="slider">Speed <input type="range" id="speed" min="0.5" max="4" step="0.1" value="1.6"></div>
   </section>
 
   <!-- KEYBOARD -->
   <section class="view" id="v-keys">
     <div class="preview-slot"></div>
     <div class="typewrap empty" data-hint="Tap here and type to the PC">
-      <input id="typer" aria-label="Type to the PC" autocomplete="off"
-        autocorrect="off" autocapitalize="off" spellcheck="false">
+      <input id="typer" aria-label="Type to the PC" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="row" style="--n:4">
       <button class="k" data-key="esc">Esc</button>
@@ -166,22 +238,26 @@
     </div>
     <p class="hint">Tap Ctrl/Alt/Shift, then a letter in the box (e.g. Ctrl + C).</p>
     <h2>Send a block of text</h2>
-    <textarea id="bulk" placeholder="Paste or write text here, then tap Send"></textarea>
+    <textarea id="bulk" class="field" placeholder="Paste or write text here, then tap Send"></textarea>
     <button class="k" id="sendBulk">Send text</button>
   </section>
 
   <!-- MEDIA -->
   <section class="view" id="v-media">
     <div class="preview-slot"></div>
-    <div class="row">
-      <button class="k big" data-media="prev">⏮</button>
-      <button class="k big" data-media="playpause">⏯</button>
-      <button class="k big" data-media="next">⏭</button>
+    <div class="card np" id="np">
+      <img id="npArt" alt="">
+      <div class="txt"><b id="npTitle"></b><small id="npSub"></small></div>
     </div>
     <div class="row">
-      <button class="k big" data-media="voldown">🔉</button>
-      <button class="k big" data-media="mute">🔇</button>
-      <button class="k big" data-media="volup">🔊</button>
+      <button class="k big" data-media="prev" aria-label="Previous">⏮</button>
+      <button class="k big" data-media="playpause" aria-label="Play or pause">⏯</button>
+      <button class="k big" data-media="next" aria-label="Next">⏭</button>
+    </div>
+    <div class="card vol">
+      <button class="icon-btn" id="muteBtn" aria-label="Mute">🔊</button>
+      <input type="range" id="volume" min="0" max="100" value="50" aria-label="PC volume">
+      <span class="num" id="volNum">–</span>
     </div>
     <h2>Shortcuts</h2>
     <div class="row" style="--n:2">
@@ -192,6 +268,16 @@
       <button class="k" data-combo="win+d">Show desktop</button>
       <button class="k" data-combo="ctrl+shift+esc">Task Manager</button>
     </div>
+  </section>
+
+  <!-- APPS -->
+  <section class="view" id="v-apps">
+    <div class="row" style="grid-template-columns: 1fr auto">
+      <input id="appSearch" class="field" type="search" placeholder="Search apps" autocomplete="off" autocorrect="off"
+        autocapitalize="off" spellcheck="false">
+      <button class="k" id="appRefresh" aria-label="Refresh list" style="min-height:0;padding:0 16px">↻</button>
+    </div>
+    <div id="appList" class="list"><p class="hint">Loading apps…</p></div>
   </section>
 
   <!-- SCREEN -->
@@ -213,26 +299,184 @@
     <p class="hint">Tap the picture to click there · hold for right-click · drag 2 fingers to scroll</p>
   </section>
 
-  <!-- APPS -->
-  <section class="view" id="v-apps">
-    <div class="searchrow">
-      <input id="appSearch" type="search" placeholder="Search apps" autocomplete="off" autocorrect="off"
-        autocapitalize="off" spellcheck="false">
-      <button class="k" id="appRefresh" aria-label="Refresh list">↻</button>
+  <!-- MORE -->
+  <section class="view" id="v-more">
+    <h2>Power</h2>
+    <div class="row" style="--n:4">
+      <button class="k small" data-sys="lock">🔒<br>Lock</button>
+      <button class="k small" data-sys="sleep" data-confirm="Put the PC to sleep?">🌙<br>Sleep</button>
+      <button class="k small danger" data-sys="restart" data-confirm="Restart the PC in 30 seconds?">↻<br>Restart</button>
+      <button class="k small danger" data-sys="shutdown" data-confirm="Shut down the PC in 30 seconds?">⏻<br>Off</button>
     </div>
-    <div id="appList"><p class="hint">Loading apps…</p></div>
+    <button class="k small" data-sys="cancel">Cancel shutdown / restart / timer</button>
+    <h2>Tools</h2>
+    <div class="tiles">
+      <button class="tile" data-go="v-files"><span>📁</span>Files</button>
+      <button class="tile" data-go="v-clip"><span>📋</span>Clipboard &amp; links</button>
+      <button class="tile" data-go="v-windows"><span>🪟</span>Open windows</button>
+      <button class="tile" data-go="v-buttons"><span>⭐</span>My buttons</button>
+      <button class="tile" data-go="v-timer"><span>⏲️</span>Sleep timer</button>
+      <button class="tile" data-go="v-stats"><span>📊</span>PC stats</button>
+      <button class="tile" data-go="v-present"><span>📽️</span>Presentation</button>
+      <button class="tile" data-go="v-gamepad"><span>🎮</span>Game pad</button>
+      <button class="tile" data-go="v-pcs"><span>💻</span>My PCs</button>
+    </div>
   </section>
 
-  <!-- SYSTEM -->
-  <section class="view" id="v-sys">
-    <div class="row" style="--n:2">
-      <button class="k" data-sys="lock">🔒 Lock</button>
-      <button class="k" data-sys="sleep" data-confirm="Put the PC to sleep?">🌙 Sleep</button>
-      <button class="k danger" data-sys="restart" data-confirm="Restart the PC in 30 seconds?">↻ Restart</button>
-      <button class="k danger" data-sys="shutdown" data-confirm="Shut down the PC in 30 seconds?">⏻ Shut down</button>
+  <!-- FILES -->
+  <section class="view sub" id="v-files">
+    <div class="subhead"><button class="back">‹ More</button><h3>Files</h3></div>
+    <label class="k primary" style="display:flex;align-items:center;justify-content:center;border-radius:var(--radius);min-height:52px">
+      📤 Send photos or files to the PC
+      <input type="file" id="filePick" multiple hidden>
+    </label>
+    <div id="uploads" class="list"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h2>On the PC</h2>
+      <button class="icon-btn" id="filesRefresh" aria-label="Refresh">↻</button>
     </div>
-    <button class="k" data-sys="cancel">Cancel pending shutdown/restart</button>
-    <p class="hint">Shutdown and restart wait 30 seconds, so you can still cancel.</p>
+    <p class="hint" id="filesFolder">Files you send go into Downloads ▸ PC Remote. To get a file from the PC onto your phone, put it in that folder, then tap it here.</p>
+    <div id="fileList" class="list"></div>
+    <button class="k small" id="openFolder">Open the folder on the PC</button>
+  </section>
+
+  <!-- CLIPBOARD & LINKS -->
+  <section class="view sub" id="v-clip">
+    <div class="subhead"><button class="back">‹ More</button><h3>Clipboard &amp; links</h3></div>
+    <h2>Phone → PC</h2>
+    <textarea id="clipOut" class="field" placeholder="Paste or type text here"></textarea>
+    <div class="row" style="--n:2">
+      <button class="k small" id="clipCopy">Copy to PC clipboard</button>
+      <button class="k small primary" id="clipPaste">Paste on PC</button>
+    </div>
+    <h2>PC → Phone</h2>
+    <button class="k small" id="clipGet">Get the PC's clipboard</button>
+    <textarea id="clipIn" class="field" readonly placeholder="The PC's clipboard text will appear here" style="min-height:70px"></textarea>
+    <button class="k small" id="clipToPhone" disabled>Copy to this phone</button>
+    <h2>Open a link on the PC</h2>
+    <input id="linkUrl" class="field" type="url" inputmode="url" placeholder="https://…" autocomplete="off" autocapitalize="off">
+    <button class="k small primary" id="linkOpen">Open in the PC's browser</button>
+  </section>
+
+  <!-- OPEN WINDOWS -->
+  <section class="view sub" id="v-windows">
+    <div class="subhead" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:6px"><button class="back">‹ More</button><h3>Open windows</h3></div>
+      <button class="icon-btn" id="winRefresh" aria-label="Refresh">↻</button>
+    </div>
+    <p class="hint">Tap a window to bring it to the front and see it. ✕ closes it (the app may ask to save first).</p>
+    <div id="winList" class="list"></div>
+  </section>
+
+  <!-- MY BUTTONS -->
+  <section class="view sub" id="v-buttons">
+    <div class="subhead" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:6px"><button class="back">‹ More</button><h3>My buttons</h3></div>
+      <button class="k small" id="btnEdit">Edit</button>
+    </div>
+    <div id="btnGrid" class="row" style="--n:2"></div>
+    <div id="btnEditor" style="display:none;flex-direction:column;gap:10px">
+      <div id="btnEditList" class="list"></div>
+      <h2>Add a button</h2>
+      <input id="nbLabel" class="field" placeholder="Name, e.g. Discord mute" maxlength="30">
+      <select id="nbKind" class="field">
+        <option value="keys">Keyboard shortcut</option>
+        <option value="url">Open a website</option>
+        <option value="app">Open an app</option>
+        <option value="text">Type some text</option>
+      </select>
+      <input id="nbValue" class="field" list="appNames" autocomplete="off" autocapitalize="off">
+      <datalist id="appNames"></datalist>
+      <p class="hint" id="nbHint"></p>
+      <button class="k primary" id="nbAdd">Add button</button>
+    </div>
+  </section>
+
+  <!-- SLEEP TIMER -->
+  <section class="view sub" id="v-timer">
+    <div class="subhead"><button class="back">‹ More</button><h3>Sleep timer</h3></div>
+    <div class="card" id="timerActive" style="display:none;text-align:center">
+      <div class="hint" id="timerWhat"></div>
+      <div class="big-time" id="timerLeft"></div>
+      <button class="k small danger" id="timerCancel" style="width:100%">Cancel timer</button>
+    </div>
+    <h2>When the time is up</h2>
+    <div class="row" style="--n:2">
+      <button class="k on" data-taction="sleep">🌙 Sleep</button>
+      <button class="k" data-taction="shutdown">⏻ Shut down</button>
+    </div>
+    <h2>Start a timer</h2>
+    <div class="row">
+      <button class="k" data-tmin="15">15 min</button>
+      <button class="k" data-tmin="30">30 min</button>
+      <button class="k" data-tmin="45">45 min</button>
+      <button class="k" data-tmin="60">1 hour</button>
+      <button class="k" data-tmin="90">1½ hours</button>
+      <button class="k" data-tmin="120">2 hours</button>
+    </div>
+    <p class="hint">Good for falling asleep to a film or music. The timer runs on the PC, so you can close the app.</p>
+  </section>
+
+  <!-- PC STATS -->
+  <section class="view sub" id="v-stats">
+    <div class="subhead"><button class="back">‹ More</button><h3>PC stats</h3></div>
+    <div class="card"><div class="stat"><span>Processor (CPU)</span><b id="stCpu">–</b></div><div class="meter"><i id="mCpu"></i></div></div>
+    <div class="card"><div class="stat"><span>Memory</span><b id="stMem">–</b></div><div class="meter"><i id="mMem"></i></div><small class="hint" id="stMem2"></small></div>
+    <div class="card"><div class="stat"><span>Disk</span><b id="stDisk">–</b></div><div class="meter"><i id="mDisk"></i></div><small class="hint" id="stDisk2"></small></div>
+    <div class="card" id="stBatCard" style="display:none"><div class="stat"><span>Battery</span><b id="stBat">–</b></div><div class="meter"><i id="mBat"></i></div></div>
+    <div class="card"><div class="stat"><span>On for</span><b id="stUp" style="font-size:18px">–</b></div></div>
+  </section>
+
+  <!-- PRESENTATION -->
+  <section class="view sub" id="v-present">
+    <div class="subhead"><button class="back">‹ More</button><h3>Presentation</h3></div>
+    <div class="present">
+      <button class="k" data-key="left">◀<br>Back</button>
+      <button class="k primary" data-key="right">Next<br>▶</button>
+    </div>
+    <div class="row" style="--n:4">
+      <button class="k small" data-key="f5">Start</button>
+      <button class="k small" data-combo="shift+f5">From here</button>
+      <button class="k small" data-key="b">Black</button>
+      <button class="k small" data-key="esc">End</button>
+    </div>
+    <p class="hint">Works with PowerPoint, Google Slides and most slide shows. Open the slides on the PC first.</p>
+  </section>
+
+  <!-- GAME PAD -->
+  <section class="view sub" id="v-gamepad">
+    <div class="subhead" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:6px"><button class="back">‹ More</button><h3>Game pad</h3></div>
+      <button class="k small" id="gpMap">WASD</button>
+    </div>
+    <div class="gp">
+      <div class="dpad" id="dpad">
+        <button class="gk" data-dir="up">▲</button>
+        <button class="gk" data-dir="left">◀</button>
+        <button class="gk" data-dir="right">▶</button>
+        <button class="gk" data-dir="down">▼</button>
+      </div>
+      <div class="abtn">
+        <button class="gk" data-hold="space">Jump<br><small>Space</small></button>
+        <button class="gk" data-hold="e">E</button>
+        <button class="gk" data-hold="shift">Shift</button>
+        <button class="gk" data-hold="q">Q</button>
+        <button class="gk" data-hold="r">R</button>
+        <button class="gk" data-hold="esc">Esc</button>
+      </div>
+    </div>
+    <p class="hint">Hold buttons to keep keys pressed. Turn your phone sideways for a bigger pad. Works best in simple games that use the keyboard.</p>
+  </section>
+
+  <!-- MY PCs -->
+  <section class="view sub" id="v-pcs">
+    <div class="subhead"><button class="back">‹ More</button><h3>My PCs</h3></div>
+    <div id="pcList" class="list"></div>
+    <h2>Add another PC</h2>
+    <p class="hint">Run PC Remote on the other PC, then paste its link here (or just scan its QR code).</p>
+    <input id="pcAddName" class="field" placeholder="Name, e.g. Laptop" maxlength="30">
+    <input id="pcAddUrl" class="field" type="url" placeholder="http://192.168.…:8765/?k=…" autocapitalize="off">
+    <button class="k primary" id="pcAdd">Add PC</button>
   </section>
 </main>
 
@@ -242,104 +486,186 @@
   <button data-view="v-media"><span>🎵</span>Media</button>
   <button data-view="v-apps"><span>🚀</span>Apps</button>
   <button data-view="v-screen"><span>🖥️</span>Screen</button>
-  <button data-view="v-sys"><span>⚙️</span>System</button>
+  <button data-view="v-more"><span>☰</span>More</button>
 </nav>
+<div id="toast"></div>
 
 <script>
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
   const store = {
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const COLORS = ["#3a7afe", "#e5484d", "#30a46c", "#f76b15", "#8e4ec6", "#12a594", "#d6409f", "#ad7f58"];
+  const colorFor = n => { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
+  const avatar = name => { const a = el("span", "avatar", (String(name).match(/[a-z0-9]/i) || ["?"])[0].toUpperCase()); a.style.background = colorFor(String(name)); return a; };
+  const fmtBytes = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
+  let toastTimer;
+  function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2200); }
+
+  // ---- other PCs: a list can arrive in the link (#pcs=...) when switching PCs ----
+  function loadPCs() { try { return JSON.parse(store.get("pcs", "[]")) || []; } catch { return []; } }
+  function savePCs(list) { store.set("pcs", JSON.stringify(list)); }
+  if (location.hash.startsWith("#pcs=")) {
+    try {
+      const incoming = JSON.parse(decodeURIComponent(location.hash.slice(5)));
+      const list = loadPCs();
+      for (const p of incoming) if (p && p.url && !list.some(q => q.url === p.url)) list.push({ name: String(p.name || "PC").slice(0, 30), url: String(p.url) });
+      savePCs(list);
+    } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
 
   // ---- access key (in the URL so a Home Screen shortcut keeps it) ----
   const KEY = new URLSearchParams(location.search).get("k") || store.get("key", "");
   if (KEY) store.set("key", KEY);
   else { $("#nokey").style.display = "block"; $("main").style.display = "none"; }
+  const HERE_URL = location.origin + "/?k=" + encodeURIComponent(KEY);
 
-  // ---- command queue: one request in flight, mouse moves get merged ----
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { method: "POST", ...opts, headers: { "X-Key": KEY, ...(opts.headers || {}) } });
+    if (r.status === 403) { setStatus(false, "Wrong key"); throw new Error("wrong key"); }
+    if (!r.ok) throw new Error("error " + r.status);
+    return r.headers.get("content-type")?.includes("json") ? r.json() : r;
+  }
+
+  // ================= sending commands =================
+  // A WebSocket streams input with very little delay; plain web requests are the backup.
   const statusEl = $("#status");
-  let queue = [], busy = false;
   function setStatus(ok, msg) { statusEl.className = ok ? "ok" : "err"; statusEl.textContent = msg; }
+  let queue = [], busy = false, flushQueued = false, ws = null, wsReady = false, wsRetry = 0;
 
+  function connectWS() {
+    if (!KEY || ws || document.hidden) return;
+    try { ws = new WebSocket(`ws://${location.host}/ws?k=${encodeURIComponent(KEY)}`); } catch { ws = null; return; }
+    ws.onopen = () => { wsReady = true; wsRetry = 0; setStatus(true, "Connected"); flush(); };
+    ws.onclose = () => { wsReady = false; ws = null; if (!document.hidden) setTimeout(connectWS, Math.min(8000, 800 * ++wsRetry)); };
+    ws.onerror = () => {};
+  }
+  const MERGE = new Set(["move", "scroll"]), REPLACE = new Set(["volume"]);
   function send(cmd) {
     const last = queue[queue.length - 1];
-    if (cmd.t === "move" && last && last.t === "move") { last.dx += cmd.dx; last.dy += cmd.dy; }
-    else if (cmd.t === "scroll" && last && last.t === "scroll") { last.dx += cmd.dx; last.dy += cmd.dy; }
+    if (last && last.t === cmd.t && MERGE.has(cmd.t)) { last.dx += cmd.dx; last.dy += cmd.dy; }
+    else if (REPLACE.has(cmd.t)) { queue = queue.filter(c => c.t !== cmd.t); queue.push(cmd); }
     else queue.push(cmd);
-    flush();
+    if (!flushQueued) { flushQueued = true; queueMicrotask(() => { flushQueued = false; flush(); }); }
   }
   async function flush() {
-    if (busy || !queue.length) return;
+    if (!queue.length) return;
+    if (wsReady && ws && ws.readyState === 1) {
+      if (ws.bufferedAmount > 4096) { setTimeout(flush, 8); return; }  // network busy: let moves pile up and merge
+      ws.send(JSON.stringify(queue)); queue = [];
+      return;
+    }
+    if (busy) return;
     busy = true;
     const batch = queue; queue = [];
-    for (const c of batch) if (c.t === "move" || c.t === "scroll") { c.dx = Math.round(c.dx); c.dy = Math.round(c.dy); }
     try {
-      const r = await fetch("/api", { method: "POST", headers: { "X-Key": KEY, "Content-Type": "application/json" },
-        body: JSON.stringify(batch) });
+      const r = await fetch("/api", { method: "POST", headers: { "X-Key": KEY, "Content-Type": "application/json" }, body: JSON.stringify(batch) });
       if (r.status === 403) setStatus(false, "Wrong key");
       else setStatus(r.ok, r.ok ? "Connected" : "Error " + r.status);
     } catch { setStatus(false, "PC not reachable"); }
     busy = false;
     if (queue.length) flush();
   }
-  if (KEY) send({ t: "ping" });
-  setInterval(() => { if (KEY && !busy && !queue.length) send({ t: "ping" }); }, 5000);
+  // keep the status (and PC name) fresh
+  async function checkIn() {
+    if (!KEY) return;
+    try {
+      const info = await api("/api/info");
+      setStatus(true, "Connected");
+      $("#pcName").textContent = info.name ? " · " + info.name : "";
+      rememberThisPC(info.name);
+    } catch (e) { if (e.message !== "wrong key") setStatus(false, "PC not reachable"); }
+  }
+  checkIn(); connectWS();
+  setInterval(() => { if (!document.hidden) checkIn(); }, 6000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { gpReset(); }
+    else { checkIn(); connectWS(); onShow(current); }
+  });
 
-  // ---- tabs ----
-  $$("nav button").forEach(b => b.addEventListener("click", () => {
-    $$("nav button").forEach(x => x.classList.toggle("active", x === b));
-    $$(".view").forEach(v => v.classList.toggle("active", v.id === b.dataset.view));
-    store.set("tab", b.dataset.view);
-  }));
-  const savedTab = $(`nav button[data-view="${store.get("tab", "v-pad")}"]`);
-  if (savedTab) savedTab.click();
+  // ================= views & navigation =================
+  const MAIN = new Set($$("nav button").map(b => b.dataset.view));
+  let current = "v-pad";
+  const showHooks = {};
+  function showView(id) {
+    if (!$("#" + id)) id = "v-pad";
+    if (current === "v-gamepad" && id !== "v-gamepad") gpReset();
+    current = id;
+    $$(".view").forEach(v => v.classList.toggle("active", v.id === id));
+    const navId = MAIN.has(id) ? id : "v-more";
+    $$("nav button").forEach(b => b.classList.toggle("active", b.dataset.view === navId));
+    store.set("tab", id);
+    placePreview();
+    onShow(id);
+  }
+  function onShow(id) { if (id === current && showHooks[id]) showHooks[id](); }
+  const isShowing = id => current === id && !document.hidden;
+  // run fn every ms while a view is open
+  const loops = {};
+  function whileShowing(id, fn, ms) {
+    if (loops[id]) return;
+    loops[id] = true;
+    (async () => { while (isShowing(id)) { try { await fn(); } catch {} await sleep(ms); } loops[id] = false; })();
+  }
+  $$("nav button").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
+  $$("[data-go]").forEach(b => b.addEventListener("click", () => showView(b.dataset.go)));
+  $$(".sub .back").forEach(b => b.addEventListener("click", () => showView("v-more")));
+  $("#pcName").addEventListener("click", () => showView("v-pcs"));
 
-  // ---- trackpad ----
+  // a little buzz on button taps (Android; iPhones ignore this)
+  document.addEventListener("click", e => { if (e.target.closest("button, .tile")) navigator.vibrate?.(8); });
+
+  // ================= trackpad =================
   const pad = $("#pad"), speed = $("#speed");
-  speed.value = store.get("speed", speed.value);
-  speed.addEventListener("input", () => store.set("speed", speed.value));
-  let last = null, start = 0, moved = 0, maxTouches = 0;
-
-  const center = t => {
-    let x = 0, y = 0;
-    for (const p of t) { x += p.clientX; y += p.clientY; }
-    return { x: x / t.length, y: y / t.length, n: t.length };
-  };
+  speed.value = store.get("speed2", speed.value);
+  speed.addEventListener("input", () => store.set("speed2", speed.value));
+  const center = t => { let x = 0, y = 0; for (const p of t) { x += p.clientX; y += p.clientY; } return { x: x / t.length, y: y / t.length, n: t.length }; };
+  let last = null, start = 0, moved = 0, maxTouches = 0, lastT = 0, rx = 0, ry = 0, sx = 0, sy = 0;
+  // Speed curve: slow finger = precise (small steps), fast flick = covers the screen.
+  function gain(dist, dt) {
+    const v = dist / Math.max(dt, 4);                        // finger speed in px per ms
+    const t = Math.min(1, Math.max(0, (v - 0.15) / 1.45));
+    return +speed.value * (0.8 + 2.2 * t * t * (3 - 2 * t));  // smooth step from 0.8x to 3x
+  }
   pad.addEventListener("touchstart", e => {
     e.preventDefault();
-    if (!maxTouches) { start = performance.now(); moved = 0; }
+    if (!maxTouches) { start = performance.now(); moved = 0; rx = ry = sx = sy = 0; }
     maxTouches = Math.max(maxTouches, e.touches.length);
-    last = center(e.touches);
+    last = center(e.touches); lastT = e.timeStamp;
   }, { passive: false });
   pad.addEventListener("touchmove", e => {
     e.preventDefault();
     const c = center(e.touches);
-    if (!last || c.n !== last.n) { last = c; return; }
-    const dx = c.x - last.x, dy = c.y - last.y;
+    if (!last || c.n !== last.n) { last = c; lastT = e.timeStamp; return; }
+    const dx = c.x - last.x, dy = c.y - last.y, dt = e.timeStamp - lastT;
     moved += Math.abs(dx) + Math.abs(dy);
-    const s = +speed.value;
     if (c.n === 1) {
-      // a bit of acceleration: fast swipes go further
-      const a = 1 + Math.min(Math.hypot(dx, dy) / 12, 2);
-      send({ t: "move", dx: dx * s * a, dy: dy * s * a });
+      const g = gain(Math.hypot(dx, dy), dt);
+      rx += dx * g; ry += dy * g;                            // keep the fractions so slow moves still move
+      const ix = Math.trunc(rx), iy = Math.trunc(ry);
+      rx -= ix; ry -= iy;
+      if (ix || iy) send({ t: "move", dx: ix, dy: iy });
     } else {
-      send({ t: "scroll", dx: dx * 4, dy: -dy * 4 });
+      sx += dx * 4; sy += -dy * 4;
+      const ix = Math.trunc(sx), iy = Math.trunc(sy);
+      sx -= ix; sy -= iy;
+      if (ix || iy) send({ t: "scroll", dx: ix, dy: iy });
     }
-    last = c;
+    last = c; lastT = e.timeStamp;
   }, { passive: false });
   pad.addEventListener("touchend", e => {
     e.preventDefault();
-    if (e.touches.length) { last = center(e.touches); return; }
-    if (performance.now() - start < 250 && moved < 12) {
-      send({ t: "button", b: maxTouches >= 2 ? "right" : "left", a: "click" });
-    }
+    if (e.touches.length) { last = center(e.touches); lastT = e.timeStamp; return; }
+    if (performance.now() - start < 250 && moved < 12) send({ t: "button", b: maxTouches >= 2 ? "right" : "left", a: "click" });
     maxTouches = 0; last = null;
   }, { passive: false });
   pad.addEventListener("touchcancel", () => { maxTouches = 0; last = null; });
-
   $$("[data-btn]").forEach(b => b.addEventListener("click", () => send({ t: "button", b: b.dataset.btn, a: "click" })));
   const drag = $("#drag");
   drag.addEventListener("click", () => {
@@ -349,7 +675,7 @@
     send({ t: "button", b: "left", a: on ? "down" : "up" });
   });
 
-  // ---- keyboard ----
+  // ================= keyboard =================
   const mods = new Set();
   const takeMods = () => { const m = [...mods]; mods.clear(); $$("[data-mod]").forEach(b => b.classList.remove("on")); return m; };
   $$("[data-mod]").forEach(b => b.addEventListener("click", () => {
@@ -362,15 +688,11 @@
     const parts = b.dataset.combo.split("+");
     send({ t: "key", k: parts.pop(), mods: parts });
   }));
-
-  // Live typing. Android keyboards (Gboard, Samsung) type in "compositions" that can't be
-  // intercepted key by key, so instead we compare the box before/after each change and send
-  // the difference: removed characters become Backspace, new characters are typed.
-  // The box always starts with one space, so Backspace works even when it looks empty.
-  const typer = $("#typer");
-  const BASE = " ";
+  // Live typing. Android keyboards type in "compositions" that can't be intercepted key by
+  // key, so we compare the box before/after each change and send the difference. The box
+  // always starts with one space, so Backspace works even when it looks empty.
+  const typer = $("#typer"), typeWrap = typer.parentElement, BASE = " ";
   let typed = BASE, composing = false;
-  const typeWrap = typer.parentElement;
   const showHint = () => typeWrap.classList.toggle("empty", typer.value === BASE || typer.value === "");
   const resetTyper = () => { typer.value = BASE; typed = BASE; showHint(); };
   resetTyper();
@@ -389,63 +711,57 @@
     }
     typed = now;
     showHint();
-    // keep the box short, and keep the leading space so Backspace always has something to delete
     if (!composing && (now === "" || now.length > 40)) resetTyper();
   }
-  typer.addEventListener("keydown", e => {
-    if (e.key === "Enter") { e.preventDefault(); send({ t: "key", k: "enter" }); resetTyper(); }
-  });
-  typer.addEventListener("focus", () => setTimeout(() => {
-    try { typer.setSelectionRange(typer.value.length, typer.value.length); } catch {}
-  }, 0));
+  typer.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); send({ t: "key", k: "enter" }); resetTyper(); } });
+  typer.addEventListener("focus", () => setTimeout(() => { try { typer.setSelectionRange(typer.value.length, typer.value.length); } catch {} }, 0));
+  $("#sendBulk").addEventListener("click", () => { const b = $("#bulk"); if (b.value) { send({ t: "text", s: b.value }); b.value = ""; } });
 
-  // a little buzz on button taps (Android; iPhones ignore this)
-  document.addEventListener("click", e => { if (e.target.closest("button")) navigator.vibrate?.(8); });
+  // ================= media: now playing + real volume =================
+  const vol = $("#volume"), volNum = $("#volNum"), muteBtn = $("#muteBtn");
+  let volTouched = 0, muted = false, artId = "";
+  vol.addEventListener("input", () => { volTouched = Date.now(); volNum.textContent = vol.value; send({ t: "volume", v: +vol.value }); });
+  muteBtn.addEventListener("click", () => { muted = !muted; muteBtn.textContent = muted ? "🔇" : "🔊"; send({ t: "setmute", m: muted }); volTouched = Date.now(); });
+  async function pollMedia() {
+    const m = await api("/api/media");
+    if (Date.now() - volTouched > 1500 && m.volume != null) {
+      vol.value = m.volume; volNum.textContent = m.volume; muted = !!m.muted; muteBtn.textContent = muted ? "🔇" : "🔊";
+    }
+    const np = $("#np"), n = m.now;
+    np.classList.toggle("show", !!n);
+    if (n) {
+      $("#npTitle").textContent = n.title;
+      $("#npSub").textContent = [n.artist, n.app].filter(Boolean).join(" · ") + (n.status === "Paused" ? " · Paused" : "");
+      if (n.art_id !== artId) {
+        artId = n.art_id;
+        $("#npArt").style.visibility = artId ? "visible" : "hidden";
+        if (artId) $("#npArt").src = `/api/art?k=${encodeURIComponent(KEY)}&v=${artId}`;
+      }
+    }
+  }
+  showHooks["v-media"] = () => whileShowing("v-media", pollMedia, 2000);
 
-  $("#sendBulk").addEventListener("click", () => {
-    const bulk = $("#bulk");
-    if (bulk.value) { send({ t: "text", s: bulk.value }); bulk.value = ""; }
-  });
-
-  // ---- apps ----
+  // ================= apps =================
   const appList = $("#appList"), appSearch = $("#appSearch");
   let apps = [], appsLoaded = false;
-  let favs;
-  try { favs = new Set(JSON.parse(store.get("favs", "[]"))); } catch { favs = new Set(); }
-  const COLORS = ["#3a7afe", "#e5484d", "#30a46c", "#f76b15", "#8e4ec6", "#12a594", "#d6409f", "#ad7f58"];
-  const colorFor = n => { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
-  const hint = t => { const p = document.createElement("p"); p.className = "hint"; p.textContent = t; return p; };
-
+  let favs; try { favs = new Set(JSON.parse(store.get("favs", "[]"))); } catch { favs = new Set(); }
   async function loadApps(refresh) {
-    appList.replaceChildren(hint(refresh ? "Refreshing…" : "Loading apps…"));
-    try {
-      const r = await fetch("/api/apps" + (refresh ? "?refresh=1" : ""), { method: "POST", headers: { "X-Key": KEY } });
-      if (!r.ok) throw new Error(r.status);
-      apps = await r.json(); appsLoaded = true;
-    } catch { appList.replaceChildren(hint("Could not load apps. Is the PC program running?")); return; }
-    renderApps();
+    appList.replaceChildren(el("p", "hint", refresh ? "Refreshing…" : "Loading apps…"));
+    try { apps = await api("/api/apps" + (refresh ? "?refresh=1" : "")); appsLoaded = true; }
+    catch { appList.replaceChildren(el("p", "hint", "Could not load apps. Is PC Remote running on the PC?")); return; }
+    renderApps(); fillAppNames();
   }
   function appRow(a) {
-    const row = document.createElement("div"); row.className = "app";
-    const open = document.createElement("button"); open.className = "open";
-    const av = document.createElement("span"); av.className = "avatar";
-    av.style.background = colorFor(a.name);
-    av.textContent = (a.name.match(/[a-z0-9]/i) || ["?"])[0].toUpperCase();
-    const label = document.createElement("span"); label.textContent = a.name;
-    open.append(av, label);
+    const row = el("div", "item app"), open = el("button", "main"), txt = el("span", "one", a.name);
+    open.append(avatar(a.name), txt);
     open.addEventListener("click", () => {
       send({ t: "app", id: a.id });
-      row.classList.add("launched"); setTimeout(() => row.classList.remove("launched"), 400);
-      // show the app's window on the phone once it has opened
-      setTimeout(() => { setScreenMode("window"); $('nav button[data-view="v-screen"]').click(); }, 1200);
+      row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 400);
+      setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 1200);  // show the app once it opens
     });
-    const star = document.createElement("button");
-    star.className = "star" + (favs.has(a.name) ? " on" : "");
-    star.textContent = "★"; star.setAttribute("aria-label", "Favorite");
-    star.addEventListener("click", () => {
-      favs.has(a.name) ? favs.delete(a.name) : favs.add(a.name);
-      store.set("favs", JSON.stringify([...favs])); renderApps();
-    });
+    const star = el("button", "star" + (favs.has(a.name) ? " on" : ""), "★");
+    star.setAttribute("aria-label", "Favorite");
+    star.addEventListener("click", () => { favs.has(a.name) ? favs.delete(a.name) : favs.add(a.name); store.set("favs", JSON.stringify([...favs])); renderApps(); });
     row.append(open, star);
     return row;
   }
@@ -453,36 +769,23 @@
     const q = appSearch.value.trim().toLowerCase();
     const shown = apps.filter(a => a.name.toLowerCase().includes(q));
     const fav = shown.filter(a => favs.has(a.name)), rest = shown.filter(a => !favs.has(a.name));
-    const heading = t => { const h = document.createElement("h2"); h.textContent = t; return h; };
     appList.replaceChildren();
-    if (fav.length) appList.append(heading("Favorites"), ...fav.map(appRow));
-    if (rest.length) { if (fav.length) appList.append(heading("All apps")); appList.append(...rest.map(appRow)); }
-    if (!shown.length) appList.append(hint("No apps match. Tap ↻ if you just installed something."));
+    if (fav.length) appList.append(el("h2", "", "Favorites"), ...fav.map(appRow));
+    if (rest.length) { if (fav.length) appList.append(el("h2", "", "All apps")); appList.append(...rest.map(appRow)); }
+    if (!shown.length) appList.append(el("p", "hint", "No apps match. Tap ↻ if you just installed something."));
   }
   appSearch.addEventListener("input", renderApps);
   $("#appRefresh").addEventListener("click", () => loadApps(true));
-  $$("nav button").forEach(b => b.addEventListener("click", () => {
-    if (b.dataset.view === "v-apps" && !appsLoaded && KEY) loadApps();
-  }));
-  if ($("#v-apps").classList.contains("active") && KEY) loadApps();
+  showHooks["v-apps"] = () => { if (!appsLoaded) loadApps(); };
 
-  // ---- screen mirroring ----
-  const screenView = $("#v-screen"), screenImg = $("#screenImg"), screenWrap = $("#screenWrap"), screenMsg = $("#screenMsg");
-  let screenMode = store.get("smode", "window"), screenRect = null, streaming = false, lastUrl = null;
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  function setScreenMode(m) {
-    screenMode = m; store.set("smode", m);
-    $$("[data-smode]").forEach(b => b.classList.toggle("on", b.dataset.smode === m));
-  }
+  // ================= live screen picture =================
+  const screenImg = $("#screenImg"), screenWrap = $("#screenWrap"), screenMsg = $("#screenMsg"), cursorDot = $("#cursorDot");
+  let screenMode = store.get("smode", "window"), screenRect = null, cursorPos = null, streaming = false, lastUrl = null;
+  function setScreenMode(m) { screenMode = m; store.set("smode", m); $$("[data-smode]").forEach(b => b.classList.toggle("on", b.dataset.smode === m)); }
   setScreenMode(screenMode);
   $$("[data-smode]").forEach(b => b.addEventListener("click", () => setScreenMode(b.dataset.smode)));
-  const cursorDot = $("#cursorDot");
-  let cursorPos = null;
   const screenShowing = () => KEY && !document.hidden && !!screenWrap.closest(".view.active");
-
-  // one live picture, moved into whichever tab is open (Trackpad, Keyboard, Media, Screen)
-  const pvShow = document.createElement("button");
-  pvShow.className = "k pv-show"; pvShow.type = "button"; pvShow.textContent = "🖥️ Show PC screen here";
+  const pvShow = el("button", "k pv-show", "🖥️ Show PC screen here"); pvShow.type = "button";
   let pvHidden = store.get("pvHidden", "0") === "1";
   function placePreview() {
     const slot = $(".view.active .preview-slot");
@@ -495,7 +798,6 @@
   }
   $("#pvHide").addEventListener("click", () => { pvHidden = true; store.set("pvHidden", "1"); placePreview(); });
   pvShow.addEventListener("click", () => { pvHidden = false; store.set("pvHidden", "0"); placePreview(); });
-
   function placeCursor() {
     if (!screenRect || !cursorPos) { cursorDot.style.display = "none"; return; }
     const fx = (cursorPos[0] - screenRect[0]) / screenRect[2], fy = (cursorPos[1] - screenRect[1]) / screenRect[3];
@@ -505,12 +807,11 @@
     cursorDot.style.top = (ib.top - wb.top + fy * ib.height) + "px";
     cursorDot.style.display = "block";
   }
-
   async function streamLoop() {
     if (streaming) return;
     streaming = true;
     while (screenShowing()) {
-      const started = performance.now();
+      const started = performance.now(), mini = screenWrap.classList.contains("mini");
       const w = Math.min(1600, Math.round(screenWrap.clientWidth * Math.min(devicePixelRatio || 2, 2.5)));
       try {
         const r = await fetch(`/api/screen?mode=${screenMode}&w=${w}`, { method: "POST", headers: { "X-Key": KEY } });
@@ -524,22 +825,16 @@
         cursorPos = cur.length === 2 && !cur.some(isNaN) ? cur : null;
         screenImg.style.display = "block"; screenMsg.style.display = "none";
         placeCursor();
-        setStatus(true, "Connected");
       } catch (e) {
-        screenMsg.textContent = "Can't show the screen (" + e.message + ")";
-        screenMsg.style.display = "block";
+        screenMsg.textContent = "Can't show the screen (" + e.message + ")"; screenMsg.style.display = "block";
         await sleep(1500);
       }
-      const spent = performance.now() - started;
-      if (spent < 80) await sleep(80 - spent);  // at most ~12 pictures a second
+      const gap = (mini ? 125 : 80) - (performance.now() - started);  // ~8 pictures/s small, ~12 big
+      if (gap > 0) await sleep(gap);
     }
     streaming = false;
   }
-  $$("nav button").forEach(b => b.addEventListener("click", placePreview));
-  document.addEventListener("visibilitychange", () => { if (screenShowing()) streamLoop(); });
   window.addEventListener("resize", placeCursor);
-  placePreview();
-
   // touch on the picture: tap = click there, hold = right-click, 2 fingers = scroll
   function pcPoint(clientX, clientY) {
     if (!screenRect) return null;
@@ -548,13 +843,13 @@
     if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return null;
     return { x: Math.round(screenRect[0] + fx * screenRect[2]), y: Math.round(screenRect[1] + fy * screenRect[3]) };
   }
-  let sStart = null, sLast = null, sMoved = 0, sMax = 0, sHold = null, sDone = false;
+  let sStart = null, sLast = null, sMoved = 0, sMax = 0, sHold = null, sDone = false, ssx = 0, ssy = 0;
   screenImg.addEventListener("touchstart", e => {
     e.preventDefault();
     const t = e.touches;
     if (!sMax) {
       sStart = { x: t[0].clientX, y: t[0].clientY, time: performance.now() };
-      sMoved = 0; sDone = false;
+      sMoved = 0; sDone = false; ssx = ssy = 0;
       clearTimeout(sHold);
       sHold = setTimeout(() => {
         const p = pcPoint(sStart.x, sStart.y);
@@ -570,7 +865,11 @@
     if (!sLast || c.n !== sLast.n) { sLast = c; return; }
     const dx = c.x - sLast.x, dy = c.y - sLast.y;
     sMoved += Math.abs(dx) + Math.abs(dy);
-    if (c.n >= 2) send({ t: "scroll", dx: dx * 4, dy: -dy * 4 });
+    if (c.n >= 2) {
+      ssx += dx * 4; ssy += -dy * 4;
+      const ix = Math.trunc(ssx), iy = Math.trunc(ssy); ssx -= ix; ssy -= iy;
+      if (ix || iy) send({ t: "scroll", dx: ix, dy: iy });
+    }
     sLast = c;
   }, { passive: false });
   screenImg.addEventListener("touchend", e => {
@@ -585,12 +884,250 @@
   }, { passive: false });
   screenImg.addEventListener("touchcancel", () => { clearTimeout(sHold); sMax = 0; sLast = null; });
 
-  // ---- media & system ----
-  $$("[data-media]").forEach(b => b.addEventListener("click", () => send({ t: "media", k: b.dataset.media })));
+  // ================= power =================
   $$("[data-sys]").forEach(b => b.addEventListener("click", () => {
     if (b.dataset.confirm && !confirm(b.dataset.confirm)) return;
     send({ t: "system", a: b.dataset.sys });
+    if (b.dataset.sys === "cancel") toast("Cancelled");
   }));
+  $$("[data-media]").forEach(b => b.addEventListener("click", () => send({ t: "media", k: b.dataset.media })));
+
+  // ================= files =================
+  const fileList = $("#fileList"), uploads = $("#uploads");
+  async function loadFiles() {
+    const r = await api("/api/files");
+    $("#filesFolder").textContent = `Files you send go into ${r.folder}. To get a file from the PC onto your phone, put it in that folder, then tap it here.`;
+    fileList.replaceChildren();
+    if (!r.files.length) fileList.append(el("p", "hint", "No files yet."));
+    for (const f of r.files) {
+      const row = el("div", "item"), a = el("a", "main");
+      a.href = `/api/file?k=${encodeURIComponent(KEY)}&name=${encodeURIComponent(f.name)}`;
+      a.setAttribute("download", f.name);
+      const txt = el("span", "txt"); txt.append(el("b", "", f.name), el("small", "", fmtBytes(f.size) + " · " + new Date(f.time * 1000).toLocaleString()));
+      a.append(avatar(f.name.split(".").pop() || f.name), txt);
+      row.append(a, el("span", "icon-btn", "⬇"));
+      fileList.append(row);
+    }
+  }
+  function uploadFile(file) {
+    const row = el("div", "item"), txt = el("span", "txt"), prog = el("div", "prog"), bar = el("i");
+    prog.append(bar); txt.style.flex = "1";
+    const status = el("small", "", "Sending…");
+    txt.append(el("b", "", file.name), status, prog);
+    row.append(avatar(file.name), txt);
+    uploads.prepend(row);
+    return new Promise(done => {
+      const x = new XMLHttpRequest();
+      x.open("POST", "/api/upload?name=" + encodeURIComponent(file.name));
+      x.setRequestHeader("X-Key", KEY);
+      x.upload.onprogress = e => { if (e.lengthComputable) bar.style.width = (100 * e.loaded / e.total) + "%"; };
+      x.onload = () => {
+        if (x.status === 200) { bar.style.width = "100%"; status.textContent = "Sent ✓ " + fmtBytes(file.size); }
+        else status.textContent = "Failed: " + (x.responseText || x.status);
+        done();
+      };
+      x.onerror = () => { status.textContent = "Failed: PC not reachable"; done(); };
+      x.send(file);
+    });
+  }
+  $("#filePick").addEventListener("change", async e => {
+    const files = [...e.target.files]; e.target.value = "";
+    for (const f of files) await uploadFile(f);
+    loadFiles().catch(() => {});
+    if (files.length) toast(files.length === 1 ? "File sent to the PC" : files.length + " files sent to the PC");
+  });
+  $("#filesRefresh").addEventListener("click", () => loadFiles().catch(() => toast("Could not load files")));
+  $("#openFolder").addEventListener("click", () => { send({ t: "open_folder" }); toast("Opened on the PC"); });
+  showHooks["v-files"] = () => loadFiles().catch(() => {});
+
+  // ================= clipboard & links =================
+  $("#clipCopy").addEventListener("click", () => { const s = $("#clipOut").value; if (!s) return; send({ t: "clip_set", s }); toast("Copied to the PC clipboard"); });
+  $("#clipPaste").addEventListener("click", () => { const s = $("#clipOut").value; if (!s) return; send({ t: "clip_set", s, paste: true }); toast("Pasted on the PC"); });
+  $("#clipGet").addEventListener("click", async () => {
+    try { const r = await api("/api/clipboard"); $("#clipIn").value = r.text; $("#clipToPhone").disabled = !r.text; if (!r.text) toast("The PC clipboard has no text"); }
+    catch { toast("Could not reach the PC"); }
+  });
+  $("#clipToPhone").addEventListener("click", async () => {
+    const box = $("#clipIn"), s = box.value;
+    try { await navigator.clipboard.writeText(s); toast("Copied to this phone"); return; } catch {}
+    box.removeAttribute("readonly"); box.focus(); box.select(); box.setSelectionRange(0, s.length);
+    const ok = document.execCommand && document.execCommand("copy");
+    box.setAttribute("readonly", ""); box.blur();
+    toast(ok ? "Copied to this phone" : "Select the text and copy it");
+  });
+  $("#linkOpen").addEventListener("click", () => {
+    let u = $("#linkUrl").value.trim();
+    if (!u) return;
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    send({ t: "open_url", u }); toast("Opening on the PC");
+    setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 1500);
+  });
+
+  // ================= open windows =================
+  const winList = $("#winList");
+  async function loadWindows() {
+    const wins = await api("/api/windows");
+    winList.replaceChildren();
+    if (!wins.length) winList.append(el("p", "hint", "No open windows."));
+    for (const w of wins) {
+      const row = el("div", "item"), main = el("button", "main"), txt = el("span", "txt");
+      txt.append(el("b", "", w.app || w.title), el("small", "", (w.min ? "Minimized · " : "") + w.title));
+      main.append(avatar(w.app || w.title), txt);
+      main.addEventListener("click", () => { send({ t: "win", a: "focus", id: w.id }); setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 500); });
+      const close = el("button", "icon-btn", "✕"); close.setAttribute("aria-label", "Close " + w.app);
+      close.addEventListener("click", () => { send({ t: "win", a: "close", id: w.id }); row.remove(); setTimeout(() => loadWindows().catch(() => {}), 1200); });
+      row.append(main, close);
+      winList.append(row);
+    }
+  }
+  $("#winRefresh").addEventListener("click", () => loadWindows().catch(() => {}));
+  showHooks["v-windows"] = () => { winList.replaceChildren(el("p", "hint", "Loading…")); loadWindows().catch(() => winList.replaceChildren(el("p", "hint", "Could not load windows."))); };
+
+  // ================= my buttons =================
+  let buttons = [], editing = false;
+  const HINTS = {
+    keys: ["e.g. ctrl+shift+m", "Keys joined with +, like ctrl+shift+m, alt+f4, win+d or f13. For Discord, set the same shortcut as a Keybind in Discord's settings so it works from anywhere."],
+    url: ["https://…", "Opens in the PC's web browser."],
+    app: ["Start typing an app name", "Opens that app, using the same list as the Apps tab."],
+    text: ["Text to type", "Types this text wherever the cursor is on the PC."],
+  };
+  function updateHint() { const h = HINTS[$("#nbKind").value]; $("#nbValue").placeholder = h[0]; $("#nbHint").textContent = h[1]; }
+  $("#nbKind").addEventListener("change", updateHint); updateHint();
+  async function fillAppNames() { const dl = $("#appNames"); dl.replaceChildren(...apps.map(a => { const o = el("option"); o.value = a.name; return o; })); }
+  async function loadButtons() { buttons = await api("/api/buttons"); renderButtons(); }
+  function renderButtons() {
+    const grid = $("#btnGrid"), list = $("#btnEditList");
+    grid.replaceChildren(); list.replaceChildren();
+    grid.style.display = editing ? "none" : "grid";
+    $("#btnEditor").style.display = editing ? "flex" : "none";
+    $("#btnEdit").textContent = editing ? "Done" : "Edit";
+    if (!buttons.length) grid.append(el("p", "hint", "No buttons yet. Tap Edit to add some."));
+    buttons.forEach((b, i) => {
+      const k = el("button", "k", b.label);
+      k.addEventListener("click", () => { send({ t: "button_run", i }); });
+      grid.append(k);
+      const row = el("div", "item"), txt = el("span", "txt");
+      txt.style.flex = "1";
+      txt.append(el("b", "", b.label), el("small", "", { keys: "Shortcut: ", url: "Website: ", app: "App: ", text: "Types: " }[b.kind] + b.value));
+      const up = el("button", "icon-btn", "↑"), del = el("button", "icon-btn", "✕");
+      up.disabled = i === 0;
+      up.addEventListener("click", () => { [buttons[i - 1], buttons[i]] = [buttons[i], buttons[i - 1]]; saveButtons(); });
+      del.addEventListener("click", () => { buttons.splice(i, 1); saveButtons(); });
+      row.append(txt, up, del);
+      list.append(row);
+    });
+  }
+  function saveButtons() { send({ t: "buttons_save", items: buttons }); renderButtons(); }
+  $("#btnEdit").addEventListener("click", () => { editing = !editing; renderButtons(); if (editing && !appsLoaded) loadApps(); });
+  $("#nbAdd").addEventListener("click", () => {
+    const label = $("#nbLabel").value.trim(), kind = $("#nbKind").value, value = $("#nbValue").value.trim();
+    if (!label || !value) { toast("Give the button a name and a value"); return; }
+    buttons.push({ label, kind, value });
+    $("#nbLabel").value = $("#nbValue").value = "";
+    saveButtons(); toast("Button added");
+  });
+  showHooks["v-buttons"] = () => loadButtons().catch(() => {});
+
+  // ================= sleep timer =================
+  let tAction = "sleep", timerEnds = 0, timerWhat = "";
+  $$("[data-taction]").forEach(b => b.addEventListener("click", () => { tAction = b.dataset.taction; $$("[data-taction]").forEach(x => x.classList.toggle("on", x === b)); }));
+  $$("[data-tmin]").forEach(b => b.addEventListener("click", () => {
+    send({ t: "timer", a: tAction, min: +b.dataset.tmin });
+    timerEnds = Date.now() + b.dataset.tmin * 60000; timerWhat = tAction; renderTimer();
+    toast(`The PC will ${tAction === "sleep" ? "sleep" : "shut down"} in ${b.textContent}`);
+  }));
+  $("#timerCancel").addEventListener("click", () => { send({ t: "timer_cancel" }); timerEnds = 0; renderTimer(); toast("Timer cancelled"); });
+  function renderTimer() {
+    const left = Math.max(0, Math.round((timerEnds - Date.now()) / 1000));
+    $("#timerActive").style.display = left > 0 ? "block" : "none";
+    if (left > 0) {
+      $("#timerWhat").textContent = timerWhat === "sleep" ? "The PC will go to sleep in" : "The PC will shut down in";
+      const h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60), s = left % 60;
+      $("#timerLeft").textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
+    }
+  }
+  async function syncTimer() { const s = await api("/api/stats"); timerEnds = s.timer ? Date.now() + s.timer.left * 1000 : 0; timerWhat = s.timer?.action || ""; }
+  showHooks["v-timer"] = () => {
+    syncTimer().then(renderTimer).catch(() => {});
+    whileShowing("v-timer", async () => { renderTimer(); }, 1000);
+  };
+
+  // ================= PC stats =================
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  function upTime(s) { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return (d ? d + "d " : "") + h + "h " + m + "m"; }
+  async function pollStats() {
+    const s = await api("/api/stats");
+    $("#stCpu").textContent = s.cpu + "%"; $("#mCpu").style.width = s.cpu + "%";
+    const mp = pct(s.mem_used, s.mem_total);
+    $("#stMem").textContent = mp + "%"; $("#mMem").style.width = mp + "%"; $("#stMem2").textContent = `${fmtBytes(s.mem_used)} of ${fmtBytes(s.mem_total)} used`;
+    if (s.disk_total) { const dp = pct(s.disk_used, s.disk_total); $("#stDisk").textContent = dp + "%"; $("#mDisk").style.width = dp + "%"; $("#stDisk2").textContent = `${fmtBytes(s.disk_total - s.disk_used)} free of ${fmtBytes(s.disk_total)}`; }
+    $("#stBatCard").style.display = s.battery ? "block" : "none";
+    if (s.battery) { $("#stBat").textContent = s.battery.percent + "%" + (s.battery.charging ? " ⚡" : ""); $("#mBat").style.width = s.battery.percent + "%"; }
+    $("#stUp").textContent = upTime(s.uptime);
+  }
+  showHooks["v-stats"] = () => whileShowing("v-stats", pollStats, 2000);
+
+  // ================= game pad =================
+  let gpArrows = store.get("gpMap", "wasd") === "arrows";
+  const DIRS = () => gpArrows ? { up: "up", left: "left", right: "right", down: "down" } : { up: "w", left: "a", right: "d", down: "s" };
+  function renderMap() { $("#gpMap").textContent = gpArrows ? "Arrows" : "WASD"; }
+  renderMap();
+  $("#gpMap").addEventListener("click", () => { gpReset(); gpArrows = !gpArrows; store.set("gpMap", gpArrows ? "arrows" : "wasd"); renderMap(); });
+  // Let go of everything (when leaving the pad or the app goes to the background), on the
+  // phone and on the PC, so no key or button is ever left stuck down.
+  const gpResets = [];
+  function gpReset() { gpResets.forEach(f => f()); send({ t: "release_all" }); }
+  $$(".gk").forEach(b => {
+    const key = () => b.dataset.hold || DIRS()[b.dataset.dir];
+    let held = null;
+    gpResets.push(() => { held = null; b.classList.remove("down"); });
+    const down = e => { e.preventDefault(); if (held) return; held = key(); b.classList.add("down"); try { b.setPointerCapture(e.pointerId); } catch {} send({ t: "keydown", k: held }); navigator.vibrate?.(10); };
+    const up = e => { e.preventDefault(); if (!held) return; send({ t: "keyup", k: held }); held = null; b.classList.remove("down"); };
+    b.addEventListener("pointerdown", down);
+    b.addEventListener("pointerup", up);
+    b.addEventListener("pointercancel", up);
+    b.addEventListener("lostpointercapture", up);
+    b.addEventListener("contextmenu", e => e.preventDefault());
+  });
+
+  // ================= my PCs =================
+  function rememberThisPC(name) {
+    const list = loadPCs(), i = list.findIndex(p => p.url === HERE_URL);
+    const entry = { name: String(name || location.hostname).slice(0, 30), url: HERE_URL };
+    if (i < 0) list.unshift(entry); else if (!list[i].custom) list[i] = { ...list[i], name: entry.name };
+    savePCs(list);
+    if (current === "v-pcs") renderPCs();
+  }
+  function renderPCs() {
+    const box = $("#pcList"), list = loadPCs();
+    box.replaceChildren();
+    list.forEach((p, i) => {
+      const here = p.url === HERE_URL, row = el("div", "item"), main = el("button", "main"), txt = el("span", "txt");
+      let host = p.url; try { host = new URL(p.url).host; } catch {}
+      txt.append(el("b", "", p.name + (here ? " (this one)" : "")), el("small", "", host));
+      main.append(avatar(p.name), txt);
+      if (!here) main.addEventListener("click", () => { location.href = p.url + "#pcs=" + encodeURIComponent(JSON.stringify(loadPCs())); });
+      row.append(main);
+      if (!here) {
+        const del = el("button", "icon-btn", "✕"); del.setAttribute("aria-label", "Remove");
+        del.addEventListener("click", () => { const l = loadPCs(); l.splice(i, 1); savePCs(l); renderPCs(); });
+        row.append(del);
+      }
+      box.append(row);
+    });
+  }
+  $("#pcAdd").addEventListener("click", () => {
+    const name = $("#pcAddName").value.trim() || "PC", url = $("#pcAddUrl").value.trim();
+    let ok = false; try { const u = new URL(url); ok = /^https?:$/.test(u.protocol) && u.searchParams.get("k"); } catch {}
+    if (!ok) { toast("Paste the full link from the other PC (it ends in ?k=…)"); return; }
+    const list = loadPCs();
+    if (!list.some(p => p.url === url)) list.push({ name, url, custom: true });
+    savePCs(list); $("#pcAddName").value = $("#pcAddUrl").value = ""; renderPCs(); toast("PC added");
+  });
+  showHooks["v-pcs"] = renderPCs;
+
+  // ---- start on the last used screen ----
+  showView(store.get("tab", "v-pad"));
 })();
 </script>
 </body>
