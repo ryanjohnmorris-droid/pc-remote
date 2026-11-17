@@ -63,6 +63,11 @@
     border-radius: var(--radius); padding: 14px; font-size: 18px; min-height: 52px; outline: none;
     user-select: text; -webkit-user-select: text; }
   #typer:focus { border-color: var(--btn-on); }
+  /* the box always holds one hidden space (see typing code), so draw the hint ourselves */
+  .typewrap { position: relative; flex: none; }
+  .typewrap.empty::after { content: attr(data-hint); position: absolute; left: 15px; right: 15px; top: 50%;
+    transform: translateY(-50%); color: var(--muted); font-size: 18px; pointer-events: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   textarea#bulk { width: 100%; flex: 1; min-height: 90px; background: var(--panel); color: var(--text);
     border: 1px solid #2f343d; border-radius: var(--radius); padding: 12px; font: inherit; resize: none;
     user-select: text; -webkit-user-select: text; }
@@ -137,8 +142,10 @@
   <!-- KEYBOARD -->
   <section class="view" id="v-keys">
     <div class="preview-slot"></div>
-    <input id="typer" placeholder="Tap here and type to the PC" autocomplete="off"
-      autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div class="typewrap empty" data-hint="Tap here and type to the PC">
+      <input id="typer" aria-label="Type to the PC" autocomplete="off"
+        autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
     <div class="row" style="--n:4">
       <button class="k" data-key="esc">Esc</button>
       <button class="k" data-key="tab">Tab</button>
@@ -363,7 +370,9 @@
   const typer = $("#typer");
   const BASE = " ";
   let typed = BASE, composing = false;
-  const resetTyper = () => { typer.value = BASE; typed = BASE; };
+  const typeWrap = typer.parentElement;
+  const showHint = () => typeWrap.classList.toggle("empty", typer.value === BASE || typer.value === "");
+  const resetTyper = () => { typer.value = BASE; typed = BASE; showHint(); };
   resetTyper();
   typer.addEventListener("compositionstart", () => { composing = true; });
   typer.addEventListener("compositionend", () => { composing = false; syncTyper(); });
@@ -379,6 +388,7 @@
       else send({ t: "text", s: added });
     }
     typed = now;
+    showHint();
     // keep the box short, and keep the leading space so Backspace always has something to delete
     if (!composing && (now === "" || now.length > 40)) resetTyper();
   }

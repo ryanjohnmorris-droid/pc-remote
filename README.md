@@ -2,10 +2,8 @@
 
 Control your Windows PC from your phone: trackpad, keyboard, media keys, open apps, see your screen, and sleep or shut down. It works on iPhone and Android, including Samsung Galaxy phones, foldables and tablets with Samsung Internet or Chrome, and you don't need an App Store app.
 
-<p>
-  <img src="screenshots/trackpad.png" width="240" alt="Trackpad with live screen preview">
-  <img src="screenshots/apps.png" width="240" alt="Open apps on the PC">
-  <img src="screenshots/media.png" width="240" alt="Media controls and shortcuts">
+<p align="center">
+  <img src="mockups/showcase.png" width="760" alt="PC Remote's six screens on a phone: Trackpad, Keyboard, Media, Apps, Screen and System">
 </p>
 
 ## Features
