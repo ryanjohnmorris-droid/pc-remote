@@ -480,6 +480,67 @@ if IS_WINDOWS:
         elif action == "maximize":
             user32.ShowWindow(hwnd, 3)
 
+    # ---- Phone-size windows ----------------------------------------------
+    # Resize the window in front into a tall phone-shaped window, so apps and websites
+    # switch to their narrow/mobile layout and fill the phone's screen. Remember the old
+    # size so "Normal size" can put it back exactly.
+    class MONITORINFO(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+    user32.IsZoomed.argtypes = [H]
+    user32.MonitorFromWindow.argtypes = [H, wintypes.DWORD]
+    user32.MonitorFromWindow.restype = H
+    user32.GetMonitorInfoW.argtypes = [H, POINTER(MONITORINFO)]
+    user32.SetWindowPos.argtypes = [H, H, c_int, c_int, c_int, c_int, wintypes.UINT]
+    SAVED_SIZES = {}   # hwnd -> (left, top, right, bottom, was_maximized)
+
+    def _front_window():
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd or hwnd == kernel32.GetConsoleWindow() or _class_name(hwnd) in DESKTOP_CLASSES:
+            return None
+        return hwnd
+
+    def phone_size(aspect):
+        hwnd = _front_window()
+        if not hwnd:
+            return
+        aspect = max(0.4, min(2.6, float(aspect)))     # height / width of the phone's view
+        r = wintypes.RECT()
+        user32.GetWindowRect(hwnd, byref(r))
+        if hwnd not in SAVED_SIZES:
+            SAVED_SIZES[hwnd] = (r.left, r.top, r.right, r.bottom, bool(user32.IsZoomed(hwnd)))
+        if user32.IsZoomed(hwnd) or user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE, so it can be resized
+        mi = MONITORINFO()
+        mi.cbSize = sizeof(mi)
+        user32.GetMonitorInfoW(user32.MonitorFromWindow(hwnd, 2), byref(mi))
+        work = mi.rcWork
+        ww, wh = work.right - work.left, work.bottom - work.top
+        try:
+            user32.GetDpiForWindow.argtypes = [H]
+            scale = (user32.GetDpiForWindow(hwnd) or 96) / 96
+        except AttributeError:   # older Windows
+            scale = 1
+        w = int((460 if aspect >= 1 else 960) * scale)   # ~ a phone's width in the app's own units
+        h = int(w * aspect)
+        if h > wh - 20:                                   # too tall for the screen: shrink both
+            h = wh - 20
+            w = int(h / aspect)
+        w = min(w, ww)
+        x, y = work.left + (ww - w) // 2, work.top + (wh - h) // 2
+        user32.SetWindowPos(hwnd, None, x, y, w, h, 0x0004 | 0x0010)  # NOZORDER | NOACTIVATE
+
+    def normal_size():
+        hwnd = _front_window()
+        saved = SAVED_SIZES.pop(hwnd, None) if hwnd else None
+        if not saved:
+            return
+        left, top, right, bottom, was_max = saved
+        user32.SetWindowPos(hwnd, None, left, top, right - left, bottom - top, 0x0004 | 0x0010)
+        if was_max:
+            user32.ShowWindow(hwnd, 3)  # SW_MAXIMIZE
+
     # ---- Clipboard -------------------------------------------------------
     def _open_clipboard():
         for _ in range(20):
@@ -667,7 +728,7 @@ else:
         _log("click_at", x, y, button)
 
     def capture(mode, max_w, quality=60):
-        w, h = (1280, 800) if mode != "window" else (900, 600)
+        w, h = (1280, 800) if mode != "window" else FAKE.get("win", (900, 600))
         ow = min(w, int(max_w))
         oh = h * ow // w
         row = bytes((x * 255 // ow, 90, 200 - x * 150 // ow, 255)[i] for x in range(ow) for i in range(4))
@@ -681,6 +742,14 @@ else:
 
     def window_action(win_id, action):
         _log("window", win_id, action)
+
+    def phone_size(aspect):
+        _log("phone size", round(float(aspect), 2))
+        FAKE["win"] = (460, int(460 * max(0.4, min(2.6, float(aspect)))))
+
+    def normal_size():
+        _log("normal size")
+        FAKE.pop("win", None)
 
     def get_clipboard():
         return FAKE["clip"]
@@ -1077,6 +1146,13 @@ def run_command(c):
     elif t == "win":
         if c.get("a") in ("focus", "close", "minimize", "maximize"):
             window_action(c.get("id"), c["a"])
+    elif t == "win_phone":
+        try:
+            phone_size(float(c.get("aspect", 2)))
+        except (TypeError, ValueError):
+            pass
+    elif t == "win_normal":
+        normal_size()
     elif t == "button_run":
         run_button(clamp(c.get("i", -1), -1, 1000))
     elif t == "buttons_save":

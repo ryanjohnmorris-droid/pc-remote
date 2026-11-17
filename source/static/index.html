@@ -173,7 +173,7 @@
 
   /* phone turned sideways */
   @media (orientation: landscape) and (max-height: 500px) {
-    body:has(#v-screen.active) header, #v-screen .hint, #v-screen .row,
+    body:has(#v-screen.active) header, #v-screen .hint, #v-screen .row, #v-screen #phoneBtn,
     body:has(#v-gamepad.active) header, #v-gamepad .hint, #v-gamepad .subhead { display: none; }
     body:has(#v-screen.active) nav button, body:has(#v-gamepad.active) nav button { padding: 4px 0; flex-direction: row; justify-content: center; }
     body:has(#v-screen.active) main, body:has(#v-gamepad.active) main { padding-top: 6px; }
@@ -332,12 +332,13 @@
         <button id="zoomReset" type="button">Zoom out ⤢</button>
       </div>
     </div>
-    <div class="row" style="grid-template-columns: 1fr 1fr auto">
-      <button class="k" data-smode="window">Active window</button>
-      <button class="k" data-smode="full">Whole screen</button>
+    <div class="row" style="grid-template-columns: 1fr 1fr auto auto">
+      <button class="k" data-smode="window">Window</button>
+      <button class="k" data-smode="full">Full screen</button>
+      <button class="k" id="phoneBtn" style="padding:0 14px" aria-label="Phone size">📱</button>
       <a class="k" id="shotBtn" style="display:grid;place-items:center;text-decoration:none;padding:0 14px" aria-label="Save a screenshot to this phone">📸</a>
     </div>
-    <p class="hint">Tap to click there · hold to right-click · pinch to zoom · 2 fingers to scroll · 📸 saves a screenshot</p>
+    <p class="hint">📱 fits the app to your phone · tap = click · hold = right-click · pinch = zoom</p>
   </section>
 
   <!-- MORE -->
@@ -375,6 +376,9 @@
       <input type="checkbox" class="switch" data-set="natural"></label>
     <label class="setrow"><span>Scroll speed</span>
       <input type="range" min="1" max="12" step="0.5" data-set="scrollSpeed"></label>
+    <h2>Screen</h2>
+    <label class="setrow"><span>Open apps in phone size<small>Apps you open or switch to from the phone get a tall, phone-shaped window on the PC, so they're easy to read here. Websites switch to their mobile layout.</small></span>
+      <input type="checkbox" class="switch" data-set="autoPhone"></label>
     <h2>App</h2>
     <label class="setrow"><span>Vibrate on taps<small>Android only; iPhones don't allow it.</small></span>
       <input type="checkbox" class="switch" data-set="haptics"></label>
@@ -560,7 +564,7 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
   // ---- settings (kept on this phone) ----
-  const DEFAULTS = { tapClick: true, natural: false, scrollSpeed: 4, haptics: true };
+  const DEFAULTS = { tapClick: true, natural: false, scrollSpeed: 4, haptics: true, autoPhone: true };
   let settings; try { settings = { ...DEFAULTS, ...JSON.parse(store.get("settings", "{}")) }; } catch { settings = { ...DEFAULTS }; }
   const saveSettings = () => store.set("settings", JSON.stringify(settings));
   const buzz = ms => { if (settings.haptics) navigator.vibrate?.(ms); };
@@ -864,7 +868,7 @@
     open.addEventListener("click", () => {
       send({ t: "app", id: a.id });
       row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 400);
-      setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 1200);  // show the app once it opens
+      setTimeout(() => showOnPhone(settings.autoPhone), 1500);  // show the app once it opens
     });
     const star = el("button", "star" + (favs.has(a.name) ? " on" : ""), "★");
     star.setAttribute("aria-label", "Favorite");
@@ -1041,6 +1045,30 @@
   }, { passive: false });
   screenImg.addEventListener("touchcancel", () => { clearTimeout(sHold); gest = null; });
 
+  // ---- phone size: make the PC window phone-shaped so it fills this screen ----
+  const phoneBtn = $("#phoneBtn");
+  let phoneSized = false;
+  function phoneAspect() {
+    // the shape of the picture area on the Screen tab (height / width)
+    const big = $("#v-screen .preview-slot"), r = big.getBoundingClientRect();
+    if (current === "v-screen" && r.width > 50 && r.height > 50) return r.height / r.width;
+    return Math.max(0.4, (innerHeight - 260) / (innerWidth - 32));
+  }
+  function setPhoneSized(on) {
+    phoneSized = on;
+    phoneBtn.textContent = on ? "↩" : "📱";
+    phoneBtn.setAttribute("aria-label", on ? "Normal size: put the window back" : "Phone size: fit this app to my phone");
+    phoneBtn.classList.toggle("on", on);
+  }
+  function showOnPhone(makePhoneSize) {
+    setScreenMode("window"); resetZoom(); showView("v-screen");
+    if (makePhoneSize) { send({ t: "win_phone", aspect: phoneAspect() }); setPhoneSized(true); }
+  }
+  phoneBtn.addEventListener("click", () => {
+    if (phoneSized) { send({ t: "win_normal" }); setPhoneSized(false); toast("Window put back to normal size"); }
+    else { setScreenMode("window"); resetZoom(); send({ t: "win_phone", aspect: phoneAspect() }); setPhoneSized(true); toast("Fitting the app to your phone · tap ↩ to undo"); }
+  });
+
   // ---- extra keys ----
   $("#moreKeysBtn").addEventListener("click", () => {
     const m = $("#moreKeys"), on = !m.classList.contains("show");
@@ -1142,7 +1170,7 @@
     if (!u) return;
     if (!/^https?:\/\//i.test(u)) u = "https://" + u;
     send({ t: "open_url", u }); toast("Opening on the PC");
-    setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 1500);
+    setTimeout(() => showOnPhone(settings.autoPhone), 1800);
   });
 
   // ================= open windows =================
@@ -1155,7 +1183,7 @@
       const row = el("div", "item"), main = el("button", "main"), txt = el("span", "txt");
       txt.append(el("b", "", w.app || w.title), el("small", "", (w.min ? "Minimized · " : "") + w.title));
       main.append(avatar(w.app || w.title), txt);
-      main.addEventListener("click", () => { send({ t: "win", a: "focus", id: w.id }); setTimeout(() => { setScreenMode("window"); showView("v-screen"); }, 500); });
+      main.addEventListener("click", () => { send({ t: "win", a: "focus", id: w.id }); setTimeout(() => showOnPhone(settings.autoPhone), 500); });
       const close = el("button", "icon-btn", "✕"); close.setAttribute("aria-label", "Close " + w.app);
       close.addEventListener("click", () => { send({ t: "win", a: "close", id: w.id }); row.remove(); setTimeout(() => loadWindows().catch(() => {}), 1200); });
       row.append(main, close);

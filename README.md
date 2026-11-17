@@ -13,7 +13,8 @@ Control your Windows PC from your phone: trackpad, keyboard, media and volume, o
 - **Keyboard:** type straight into the PC (works with iPhone, Gboard and Samsung keyboards), plus Ctrl/Alt/Shift shortcuts, arrow keys, and More keys (F1–F12, Home, End, Page Up/Down, Delete).
 - **Media:** **Now Playing** (song, artist and album art from Spotify, YouTube, etc.), a **real volume slider**, play/pause and track buttons, and handy shortcuts.
 - **Apps:** every app in your Start menu, with search and favorites. Tap one to open it and see it on your phone.
-- **Screen:** a live view of the active window or the whole screen. Tap the picture to click there, pinch to zoom in on small text, and use 📸 to save a full-size screenshot to your phone. A small live view also appears on the Trackpad, Keyboard and Media tabs, with the mouse pointer drawn on it.
+- **Screen:** a live view of the active window or the whole screen. Tap the picture to click there, pinch to zoom in on small text, and use 📸 to save a full-size screenshot to your phone.
+- **📱 Phone size:** resizes the app's window on the PC into a tall, phone-shaped window, so it fills your phone and is easy to read. Websites switch to their mobile layout. Tap ↩ to put the window back. Apps you open from the phone do this automatically (you can turn that off in Settings). A small live view also appears on the Trackpad, Keyboard and Media tabs, with the mouse pointer drawn on it.
 
 **More tab**
 - **Power:** lock, sleep, restart and shut down (restart and shut down wait 30 s so you can cancel).
