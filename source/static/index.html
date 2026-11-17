@@ -41,11 +41,13 @@
   .view { display: none; flex: 1; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto;
     padding-bottom: 12px; -webkit-overflow-scrolling: touch; }
   .view.active { display: flex; }
-  nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #2a2e36; }
-  nav button { background: none; border: 0; color: var(--muted); padding: 10px 0 12px; font-size: 11px;
-    display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: inherit; }
-  nav button span { font-size: 22px; line-height: 1; }
-  nav button.active { color: var(--btn-on); }
+  nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #2a2e36; background: #15171c;
+    padding: 4px 4px 2px; }
+  nav button { background: none; border: 0; color: var(--muted); padding: 9px 0 10px; font-size: 12.5px; font-weight: 500;
+    display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: inherit; min-height: 68px;
+    border-radius: 14px; }
+  nav button span { font-size: 28px; line-height: 1; }
+  nav button.active { color: var(--btn-on); background: rgba(58, 122, 254, .14); }
 
   .k { background: var(--btn); color: var(--text); border: 0; border-radius: var(--radius);
     font-size: 16px; padding: 14px 8px; min-height: 52px; font-family: inherit; }
@@ -182,6 +184,26 @@
     #v-gamepad .gk { min-height: 0; }
   }
   #nokey { display: none; padding: 24px 16px; color: var(--muted); line-height: 1.5; }
+  /* settings */
+  .setrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--panel);
+    border-radius: var(--radius); padding: 14px; min-height: 56px; }
+  .setrow small { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .switch { appearance: none; -webkit-appearance: none; width: 50px; height: 30px; border-radius: 15px; background: var(--line);
+    position: relative; flex: none; transition: background .2s; margin: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+    background: #fff; transition: transform .2s; }
+  .switch:checked { background: var(--ok); }
+  .switch:checked::after { transform: translateX(20px); }
+  .setrow input[type=range] { width: 45%; }
+  /* screen zoom */
+  #screenImg { transform-origin: 0 0; will-change: transform; }
+  #zoomReset { position: absolute; bottom: 8px; right: 8px; display: none; background: rgba(0,0,0,.6); color: #fff;
+    border: 0; border-radius: 10px; font: inherit; font-size: 13px; padding: 7px 11px; }
+  #zoomReset.show { display: block; }
+  /* extra keys */
+  #moreKeys { display: none; }
+  #moreKeys.show { display: grid; }
+  #moreKeys .k { min-height: 44px; padding: 8px 2px; font-size: 14px; }
   #toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: #2c3140; color: var(--text); padding: 10px 16px; border-radius: 12px; font-size: 14px;
     opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90vw; text-align: center; z-index: 9; }
@@ -235,6 +257,23 @@
       <button class="k" data-key="up">↑</button>
       <button class="k" data-key="down">↓</button>
       <button class="k" data-key="right">→</button>
+    </div>
+    <button class="k small" id="moreKeysBtn">More keys ▾</button>
+    <div class="row" id="moreKeys" style="--n:4">
+      <button class="k" data-key="home">Home</button>
+      <button class="k" data-key="end">End</button>
+      <button class="k" data-key="pageup">PgUp</button>
+      <button class="k" data-key="pagedown">PgDn</button>
+      <button class="k" data-key="delete">Delete</button>
+      <button class="k" data-key="insert">Insert</button>
+      <button class="k" data-key="printscreen">PrtSc</button>
+      <button class="k" data-key="menu">Menu</button>
+      <button class="k" data-key="f1">F1</button><button class="k" data-key="f2">F2</button>
+      <button class="k" data-key="f3">F3</button><button class="k" data-key="f4">F4</button>
+      <button class="k" data-key="f5">F5</button><button class="k" data-key="f6">F6</button>
+      <button class="k" data-key="f7">F7</button><button class="k" data-key="f8">F8</button>
+      <button class="k" data-key="f9">F9</button><button class="k" data-key="f10">F10</button>
+      <button class="k" data-key="f11">F11</button><button class="k" data-key="f12">F12</button>
     </div>
     <p class="hint">Tap Ctrl/Alt/Shift, then a letter in the box (e.g. Ctrl + C).</p>
     <h2>Send a block of text</h2>
@@ -290,13 +329,15 @@
         </svg>
         <p id="screenMsg" class="hint">Loading screen…</p>
         <button id="pvHide" type="button">Hide</button>
+        <button id="zoomReset" type="button">Zoom out ⤢</button>
       </div>
     </div>
-    <div class="row" style="--n:2">
+    <div class="row" style="grid-template-columns: 1fr 1fr auto">
       <button class="k" data-smode="window">Active window</button>
       <button class="k" data-smode="full">Whole screen</button>
+      <a class="k" id="shotBtn" style="display:grid;place-items:center;text-decoration:none;padding:0 14px" aria-label="Save a screenshot to this phone">📸</a>
     </div>
-    <p class="hint">Tap the picture to click there · hold for right-click · drag 2 fingers to scroll</p>
+    <p class="hint">Tap to click there · hold to right-click · pinch to zoom · 2 fingers to scroll · 📸 saves a screenshot</p>
   </section>
 
   <!-- MORE -->
@@ -320,7 +361,26 @@
       <button class="tile" data-go="v-present"><span>📽️</span>Presentation</button>
       <button class="tile" data-go="v-gamepad"><span>🎮</span>Game pad</button>
       <button class="tile" data-go="v-pcs"><span>💻</span>My PCs</button>
+      <button class="tile" data-go="v-settings"><span>⚙️</span>Settings</button>
     </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view sub" id="v-settings">
+    <div class="subhead"><button class="back">‹ More</button><h3>Settings</h3></div>
+    <h2>Trackpad</h2>
+    <label class="setrow"><span>Tap to click<small>Tap the trackpad to click. Tap twice and hold to drag.</small></span>
+      <input type="checkbox" class="switch" data-set="tapClick"></label>
+    <label class="setrow"><span>Natural scrolling<small>Content follows your fingers, like on a phone.</small></span>
+      <input type="checkbox" class="switch" data-set="natural"></label>
+    <label class="setrow"><span>Scroll speed</span>
+      <input type="range" min="1" max="12" step="0.5" data-set="scrollSpeed"></label>
+    <h2>App</h2>
+    <label class="setrow"><span>Vibrate on taps<small>Android only; iPhones don't allow it.</small></span>
+      <input type="checkbox" class="switch" data-set="haptics"></label>
+    <label class="setrow"><span>Live screen on Trackpad, Keyboard and Media<small>Turn off to save battery and Wi-Fi.</small></span>
+      <input type="checkbox" class="switch" data-set="preview"></label>
+    <p class="hint" id="aboutLine" style="text-align:center;margin-top:8px"></p>
   </section>
 
   <!-- FILES -->
@@ -499,6 +559,12 @@
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} },
   };
+  // ---- settings (kept on this phone) ----
+  const DEFAULTS = { tapClick: true, natural: false, scrollSpeed: 4, haptics: true };
+  let settings; try { settings = { ...DEFAULTS, ...JSON.parse(store.get("settings", "{}")) }; } catch { settings = { ...DEFAULTS }; }
+  const saveSettings = () => store.set("settings", JSON.stringify(settings));
+  const buzz = ms => { if (settings.haptics) navigator.vibrate?.(ms); };
+  const scrollStep = (dx, dy) => { const k = settings.natural ? -1 : 1, s = settings.scrollSpeed; return [dx * s * k, -dy * s * k]; };
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const COLORS = ["#3a7afe", "#e5484d", "#30a46c", "#f76b15", "#8e4ec6", "#12a594", "#d6409f", "#ad7f58"];
   const colorFor = n => { let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return COLORS[h % COLORS.length]; };
@@ -588,10 +654,12 @@
     if (queue.length) flush();
   }
   // keep the status (and PC name) fresh
+  let pcInfo = {};
   async function checkIn() {
     if (!KEY) return;
     try {
       const info = await api("/api/info");
+      pcInfo = info;
       if (!wsReady) setStatus(true, "Connected (slow mode)");
       else if (!delays.length) setStatus(true, "Connected");
       $("#pcName").textContent = info.name ? " · " + info.name : "";
@@ -635,7 +703,7 @@
   $("#pcName").addEventListener("click", () => showView("v-pcs"));
 
   // a little buzz on button taps (Android; iPhones ignore this)
-  document.addEventListener("click", e => { if (e.target.closest("button, .tile")) navigator.vibrate?.(8); });
+  document.addEventListener("click", e => { if (e.target.closest("button, .tile")) buzz(8); });
 
   // ================= trackpad =================
   const pad = $("#pad"), speed = $("#speed");
@@ -644,6 +712,7 @@
   const center = t => { let x = 0, y = 0; for (const p of t) { x += p.clientX; y += p.clientY; } return { x: x / t.length, y: y / t.length, n: t.length }; };
   let last = null, start = 0, moved = 0, maxTouches = 0, lastT = 0, rx = 0, ry = 0, sx = 0, sy = 0;
   let padDown = false, padUpAt = 0, lastLocalMove = 0;
+  let lastTapAt = 0, dragCandidate = false, dragging = false;   // tap twice and hold = drag, like a laptop
   // move the pointer drawn on the phone straight away, without waiting for the PC
   function nudgeCursor(dx, dy) {
     lastLocalMove = performance.now();
@@ -657,9 +726,13 @@
   }
   pad.addEventListener("touchstart", e => {
     e.preventDefault();
-    if (!maxTouches) { start = performance.now(); moved = 0; rx = ry = sx = sy = 0; }
+    if (!maxTouches) {
+      start = performance.now(); moved = 0; rx = ry = sx = sy = 0;
+      dragCandidate = settings.tapClick && e.touches.length === 1 && start - lastTapAt < 300;
+    }
     padDown = true;
     maxTouches = Math.max(maxTouches, e.touches.length);
+    if (maxTouches > 1) dragCandidate = false;
     last = center(e.touches); lastT = e.timeStamp;
   }, { passive: false });
   pad.addEventListener("touchmove", e => {
@@ -669,13 +742,15 @@
     const dx = c.x - last.x, dy = c.y - last.y, dt = e.timeStamp - lastT;
     moved += Math.abs(dx) + Math.abs(dy);
     if (c.n === 1) {
+      if (dragCandidate && !dragging && moved > 12) { dragging = true; send({ t: "button", b: "left", a: "down" }); buzz(15); }
       const g = gain(Math.hypot(dx, dy), dt);
       rx += dx * g; ry += dy * g;                            // keep the fractions so slow moves still move
       const ix = Math.trunc(rx), iy = Math.trunc(ry);
       rx -= ix; ry -= iy;
       if (ix || iy) { send({ t: "move", dx: ix, dy: iy }); nudgeCursor(ix, iy); }
     } else {
-      sx += dx * 4; sy += -dy * 4;
+      const [ax, ay] = scrollStep(dx, dy);
+      sx += ax; sy += ay;
       const ix = Math.trunc(sx), iy = Math.trunc(sy);
       sx -= ix; sy -= iy;
       if (ix || iy) send({ t: "scroll", dx: ix, dy: iy });
@@ -685,10 +760,19 @@
   pad.addEventListener("touchend", e => {
     e.preventDefault();
     if (e.touches.length) { last = center(e.touches); lastT = e.timeStamp; return; }
-    if (performance.now() - start < 250 && moved < 12) send({ t: "button", b: maxTouches >= 2 ? "right" : "left", a: "click" });
-    maxTouches = 0; last = null; padDown = false; padUpAt = performance.now();
+    if (dragging) { send({ t: "button", b: "left", a: "up" }); dragging = false; }
+    else if (settings.tapClick && performance.now() - start < 250 && moved < 12) {
+      // 1 finger = left click, 2 = right click, 3 = middle click (opens links in a new tab)
+      const b = maxTouches >= 3 ? "middle" : maxTouches === 2 ? "right" : "left";
+      send({ t: "button", b, a: "click" });
+      if (b === "left") lastTapAt = performance.now();
+    }
+    maxTouches = 0; last = null; padDown = false; padUpAt = performance.now(); dragCandidate = false;
   }, { passive: false });
-  pad.addEventListener("touchcancel", () => { maxTouches = 0; last = null; padDown = false; padUpAt = performance.now(); });
+  pad.addEventListener("touchcancel", () => {
+    if (dragging) { send({ t: "button", b: "left", a: "up" }); dragging = false; }
+    maxTouches = 0; last = null; padDown = false; padUpAt = performance.now(); dragCandidate = false;
+  });
   $$("[data-btn]").forEach(b => b.addEventListener("click", () => send({ t: "button", b: b.dataset.btn, a: "click" })));
   const drag = $("#drag");
   drag.addEventListener("click", () => {
@@ -806,7 +890,12 @@
   let screenMode = store.get("smode", "window"), screenRect = null, cursorPos = null, streaming = false, lastUrl = null;
   function setScreenMode(m) { screenMode = m; store.set("smode", m); $$("[data-smode]").forEach(b => b.classList.toggle("on", b.dataset.smode === m)); }
   setScreenMode(screenMode);
-  $$("[data-smode]").forEach(b => b.addEventListener("click", () => setScreenMode(b.dataset.smode)));
+  $$("[data-smode]").forEach(b => b.addEventListener("click", () => { setScreenMode(b.dataset.smode); resetZoom(); }));
+  $("#shotBtn").addEventListener("click", e => {
+    e.currentTarget.href = `/api/shot?k=${encodeURIComponent(KEY)}&mode=${screenMode}&t=${Date.now()}`;
+    e.currentTarget.setAttribute("download", "");
+    toast("Saving a screenshot to this phone…");
+  });
   const screenShowing = () => KEY && !document.hidden && !!screenWrap.closest(".view.active");
   const pvShow = el("button", "k pv-show", "🖥️ Show PC screen here"); pvShow.type = "button";
   let pvHidden = store.get("pvHidden", "0") === "1";
@@ -817,6 +906,7 @@
     if (!big && pvHidden) { slot.classList.add("collapsed"); slot.replaceChildren(pvShow); }
     else { slot.classList.remove("collapsed"); if (screenWrap.parentNode !== slot) slot.replaceChildren(screenWrap); }
     screenWrap.classList.toggle("mini", !big);
+    if (!big) resetZoom();
     streamLoop();
   }
   $("#pvHide").addEventListener("click", () => { pvHidden = true; store.set("pvHidden", "1"); placePreview(); });
@@ -869,46 +959,112 @@
     if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return null;
     return { x: Math.round(screenRect[0] + fx * screenRect[2]), y: Math.round(screenRect[1] + fy * screenRect[3]) };
   }
-  let sStart = null, sLast = null, sMoved = 0, sMax = 0, sHold = null, sDone = false, ssx = 0, ssy = 0;
+  // ---- zoom: pinch to zoom the picture, drag with one finger to look around ----
+  let zoom = 1, panX = 0, panY = 0;
+  const zoomBtn = $("#zoomReset");
+  function applyZoom() {
+    const w = screenImg.offsetWidth, h = screenImg.offsetHeight;
+    zoom = Math.min(5, Math.max(1, zoom));
+    panX = Math.min(0, Math.max(w - w * zoom, panX));
+    panY = Math.min(0, Math.max(h - h * zoom, panY));
+    screenImg.style.transform = zoom > 1.001 ? `translate(${panX}px, ${panY}px) scale(${zoom})` : "";
+    zoomBtn.classList.toggle("show", zoom > 1.01);
+    placeCursor();
+  }
+  function resetZoom() { zoom = 1; panX = panY = 0; applyZoom(); }
+  zoomBtn.addEventListener("click", resetZoom);
+  // where the picture would sit with no zoom (its layout box), in screen coordinates
+  const imgOrigin = () => { const wb = screenWrap.getBoundingClientRect(); return { x: wb.left + screenImg.offsetLeft, y: wb.top + screenImg.offsetTop }; };
+  const spread = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+  // ---- touch on the picture ----
+  // 1 finger: tap = click there, hold = right-click, drag = look around (when zoomed)
+  // 2 fingers: pinch = zoom, move together = scroll the PC
+  let gest = null, sHold = null;
   screenImg.addEventListener("touchstart", e => {
     e.preventDefault();
-    const t = e.touches;
-    if (!sMax) {
-      sStart = { x: t[0].clientX, y: t[0].clientY, time: performance.now() };
-      sMoved = 0; sDone = false; ssx = ssy = 0;
+    const t = e.touches, c = center(t);
+    if (!gest) {
+      gest = { x0: t[0].clientX, y0: t[0].clientY, time: performance.now(), moved: 0, max: 0, done: false, mode: null, sx: 0, sy: 0 };
       clearTimeout(sHold);
       sHold = setTimeout(() => {
-        const p = pcPoint(sStart.x, sStart.y);
-        if (sMax === 1 && sMoved < 12 && p) { send({ t: "tap", b: "right", ...p }); sDone = true; navigator.vibrate?.(20); }
+        if (!gest || gest.max !== 1 || gest.moved >= 12) return;
+        const p = pcPoint(gest.x0, gest.y0);
+        if (p) { send({ t: "tap", b: "right", ...p }); gest.done = true; buzz(20); }
       }, 550);
     }
-    sMax = Math.max(sMax, t.length);
-    sLast = center(t);
+    gest.max = Math.max(gest.max, t.length);
+    gest.last = c;
+    if (t.length === 2) {
+      const o = imgOrigin();
+      gest.d0 = spread(t); gest.z0 = zoom; gest.c0 = c;
+      gest.anchor = { x: (c.x - o.x - panX) / zoom, y: (c.y - o.y - panY) / zoom };  // picture point under the fingers
+    }
   }, { passive: false });
   screenImg.addEventListener("touchmove", e => {
     e.preventDefault();
-    const c = center(e.touches);
-    if (!sLast || c.n !== sLast.n) { sLast = c; return; }
-    const dx = c.x - sLast.x, dy = c.y - sLast.y;
-    sMoved += Math.abs(dx) + Math.abs(dy);
-    if (c.n >= 2) {
-      ssx += dx * 4; ssy += -dy * 4;
-      const ix = Math.trunc(ssx), iy = Math.trunc(ssy); ssx -= ix; ssy -= iy;
-      if (ix || iy) send({ t: "scroll", dx: ix, dy: iy });
+    if (!gest) return;
+    const t = e.touches, c = center(t);
+    if (c.n !== gest.last.n) { gest.last = c; return; }
+    const dx = c.x - gest.last.x, dy = c.y - gest.last.y;
+    gest.moved += Math.abs(dx) + Math.abs(dy);
+    if (c.n === 1) {
+      if (zoom > 1 && gest.moved >= 12) { panX += dx; panY += dy; applyZoom(); }
+    } else if (gest.d0) {
+      const ratio = spread(t) / gest.d0;
+      if (!gest.mode && Math.abs(ratio - 1) > 0.08) gest.mode = "pinch";
+      else if (!gest.mode && Math.hypot(c.x - gest.c0.x, c.y - gest.c0.y) > 16) gest.mode = "scroll";
+      if (gest.mode === "pinch") {
+        zoom = Math.min(5, Math.max(1, gest.z0 * ratio));
+        const o = imgOrigin();
+        panX = c.x - o.x - gest.anchor.x * zoom; panY = c.y - o.y - gest.anchor.y * zoom;
+        applyZoom();
+      } else if (gest.mode === "scroll") {
+        const [ax, ay] = scrollStep(dx, dy);
+        gest.sx += ax; gest.sy += ay;
+        const ix = Math.trunc(gest.sx), iy = Math.trunc(gest.sy); gest.sx -= ix; gest.sy -= iy;
+        if (ix || iy) send({ t: "scroll", dx: ix, dy: iy });
+      }
     }
-    sLast = c;
+    gest.last = c;
   }, { passive: false });
   screenImg.addEventListener("touchend", e => {
     e.preventDefault();
-    if (e.touches.length) { sLast = center(e.touches); return; }
+    if (!gest) return;
+    if (e.touches.length) { gest.last = center(e.touches); if (e.touches.length < 2) gest.d0 = null; return; }
     clearTimeout(sHold);
-    if (!sDone && sMax === 1 && sMoved < 12 && performance.now() - sStart.time < 550) {
-      const p = pcPoint(sStart.x, sStart.y);
+    if (!gest.done && gest.max === 1 && gest.moved < 12 && performance.now() - gest.time < 550) {
+      const p = pcPoint(gest.x0, gest.y0);
       if (p) send({ t: "tap", b: "left", ...p });
     }
-    sMax = 0; sLast = null;
+    gest = null;
   }, { passive: false });
-  screenImg.addEventListener("touchcancel", () => { clearTimeout(sHold); sMax = 0; sLast = null; });
+  screenImg.addEventListener("touchcancel", () => { clearTimeout(sHold); gest = null; });
+
+  // ---- extra keys ----
+  $("#moreKeysBtn").addEventListener("click", () => {
+    const m = $("#moreKeys"), on = !m.classList.contains("show");
+    m.classList.toggle("show", on);
+    $("#moreKeysBtn").textContent = on ? "Fewer keys ▴" : "More keys ▾";
+  });
+
+  // ---- settings page ----
+  function renderSettings() {
+    $$("[data-set]").forEach(i => {
+      const k = i.dataset.set;
+      if (k === "preview") i.checked = !pvHidden;
+      else if (i.type === "checkbox") i.checked = !!settings[k];
+      else i.value = settings[k];
+    });
+    $("#aboutLine").textContent = `PC Remote ${pcInfo.version || ""}` + (pcInfo.name ? ` · connected to ${pcInfo.name}` : "");
+  }
+  $$("[data-set]").forEach(i => i.addEventListener(i.type === "checkbox" ? "change" : "input", () => {
+    const k = i.dataset.set;
+    if (k === "preview") { pvHidden = !i.checked; store.set("pvHidden", pvHidden ? "1" : "0"); return; }
+    settings[k] = i.type === "checkbox" ? i.checked : +i.value;
+    saveSettings();
+  }));
+  showHooks["v-settings"] = renderSettings;
 
   // ================= power =================
   $$("[data-sys]").forEach(b => b.addEventListener("click", () => {
@@ -1107,7 +1263,7 @@
     const key = () => b.dataset.hold || DIRS()[b.dataset.dir];
     let held = null;
     gpResets.push(() => { held = null; b.classList.remove("down"); });
-    const down = e => { e.preventDefault(); if (held) return; held = key(); b.classList.add("down"); try { b.setPointerCapture(e.pointerId); } catch {} send({ t: "keydown", k: held }); navigator.vibrate?.(10); };
+    const down = e => { e.preventDefault(); if (held) return; held = key(); b.classList.add("down"); try { b.setPointerCapture(e.pointerId); } catch {} send({ t: "keydown", k: held }); buzz(10); };
     const up = e => { e.preventDefault(); if (!held) return; send({ t: "keyup", k: held }); held = null; b.classList.remove("down"); };
     b.addEventListener("pointerdown", down);
     b.addEventListener("pointerup", up);

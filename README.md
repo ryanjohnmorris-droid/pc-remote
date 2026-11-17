@@ -9,11 +9,11 @@ Control your Windows PC from your phone: trackpad, keyboard, media and volume, o
 ## Features
 
 **Main tabs**
-- **Trackpad:** a smooth, precise pointer. Slow finger movements give fine control and quick flicks cross the screen. Tap to click, use two fingers to scroll or right-click, and drag with Hold.
-- **Keyboard:** type straight into the PC (works with iPhone, Gboard and Samsung keyboards), plus Ctrl/Alt/Shift shortcuts and arrow keys.
+- **Trackpad:** a smooth, precise pointer. Slow finger movements give fine control and quick flicks cross the screen. Laptop-style gestures: tap to click, tap twice and hold to drag, two-finger tap for right-click, three-finger tap for middle-click, and two fingers to scroll (natural scrolling optional).
+- **Keyboard:** type straight into the PC (works with iPhone, Gboard and Samsung keyboards), plus Ctrl/Alt/Shift shortcuts, arrow keys, and More keys (F1–F12, Home, End, Page Up/Down, Delete).
 - **Media:** **Now Playing** (song, artist and album art from Spotify, YouTube, etc.), a **real volume slider**, play/pause and track buttons, and handy shortcuts.
 - **Apps:** every app in your Start menu, with search and favorites. Tap one to open it and see it on your phone.
-- **Screen:** a live view of the active window or the whole screen. Tap the picture to click there. A small live view also appears on the Trackpad, Keyboard and Media tabs, with the mouse pointer drawn on it.
+- **Screen:** a live view of the active window or the whole screen. Tap the picture to click there, pinch to zoom in on small text, and use 📸 to save a full-size screenshot to your phone. A small live view also appears on the Trackpad, Keyboard and Media tabs, with the mouse pointer drawn on it.
 
 **More tab**
 - **Power:** lock, sleep, restart and shut down (restart and shut down wait 30 s so you can cancel).
@@ -26,6 +26,9 @@ Control your Windows PC from your phone: trackpad, keyboard, media and volume, o
 - **Presentation:** big Next/Back buttons for PowerPoint and Google Slides.
 - **Game pad:** hold-down WASD/arrow keys and action buttons for simple keyboard games.
 - **My PCs:** switch between several PCs.
+- **Settings:** tap to click, natural scrolling, scroll speed, vibration, and the live screen picture on or off.
+
+The status at the top shows the connection delay in milliseconds (or "slow mode" if the live connection couldn't start).
 
 **Under the hood:** one Python file that only uses the standard library, so there's nothing else to install. A live WebSocket connection keeps the mouse responsive.
 

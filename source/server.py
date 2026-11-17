@@ -30,7 +30,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, quote
 
-VERSION = "2.0"
+VERSION = "2.1"
 PORT = int(os.environ.get("REMOTE_PORT", "8765"))
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
@@ -377,7 +377,7 @@ if IS_WINDOWS:
 
     SCREEN_LOCK = threading.Lock()
 
-    def capture(mode, max_w):
+    def capture(mode, max_w, quality=60):
         with SCREEN_LOCK:
             left, top, w, h = target_rect(mode)
             scale = min(1.0, max_w / w)
@@ -393,7 +393,7 @@ if IS_WINDOWS:
                 gdi32.SelectObject(mdc, old)
                 if _jpeg_init():
                     try:
-                        return _encode_jpeg(bmp), "image/jpeg", (left, top, w, h)
+                        return _encode_jpeg(bmp, quality), "image/jpeg", (left, top, w, h)
                     except Exception as e:
                         print(" JPEG failed, switching to PNG:", e)
                         JPEG["ok"] = False
@@ -666,7 +666,7 @@ else:
         FAKE["cursor"][:] = [x, y]
         _log("click_at", x, y, button)
 
-    def capture(mode, max_w):
+    def capture(mode, max_w, quality=60):
         w, h = (1280, 800) if mode != "window" else (900, 600)
         ow = min(w, int(max_w))
         oh = h * ow // w
@@ -1457,11 +1457,15 @@ class Handler(BaseHTTPRequestHandler):
     # ---------------- GET ----------------
     def do_GET(self):
         path, q = urlparse(self.path).path, self._query()
-        if path in ("/ws", "/api/file", "/api/art"):
+        if path in ("/ws", "/api/file", "/api/art", "/api/shot"):
             if not secrets.compare_digest(q.get("k", ""), KEY):
                 return self._reply(403, b"bad key")
             if path == "/ws":
                 return self._websocket()
+            if path == "/api/shot":   # full-size screenshot, saved on the phone
+                data, ctype, _ = capture("window" if q.get("mode") == "window" else "full", 3840, 90)
+                name = time.strftime("PC screenshot %Y-%m-%d %H.%M.%S.") + ("png" if ctype == "image/png" else "jpg")
+                return self._reply(200, data, ctype, {"Content-Disposition": "attachment; filename*=UTF-8''" + quote(name)})
             if path == "/api/art":
                 art = media_art()
                 if not art:
