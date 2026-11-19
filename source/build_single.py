@@ -21,3 +21,10 @@ s = s.replace('\n\nif __name__ == "__main__":', "\n\n# Phone app files (built in
               + json.dumps(assets, indent=1) + '\n\n\nif __name__ == "__main__":')
 (here.parent / "server.py").write_text(s, encoding="utf-8")
 print("built server.py", len(s), "bytes")
+
+# Friend pack: the app + simple setup steps, for one-link sharing
+import zipfile
+with zipfile.ZipFile(here.parent / "PC-Remote.zip", "w", zipfile.ZIP_DEFLATED) as z:
+    z.write(here.parent / "server.py", "PC Remote/server.py")
+    z.write(here / "HOW TO SET UP.txt", "PC Remote/HOW TO SET UP.txt")
+print("built PC-Remote.zip")

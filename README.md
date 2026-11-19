@@ -35,8 +35,10 @@ The status at the top shows the connection delay in milliseconds (or "slow mode"
 
 ## Setup
 
+**[⬇ Download PC Remote (zip)](https://github.com/ryanjohnmorris-droid/pc-remote/raw/main/PC-Remote.zip)**: the app plus easy setup steps.
+
 1. Install Python 3 on your Windows PC from [python.org/downloads](https://www.python.org/downloads/).
-2. Download [`server.py`](server.py) (click it, then the download button) and put it somewhere it can stay.
+2. Unzip the download (or grab just [`server.py`](server.py)) and put it somewhere it can stay.
 3. Double-click `server.py`. If Windows Firewall asks, click **Allow**.
 4. **Scan the QR code** in the window with your phone's camera. Your phone must be on the **same Wi-Fi**. You can also type the link shown under the QR code.
 5. Add it to your Home Screen:

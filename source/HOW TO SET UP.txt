@@ -1,0 +1,52 @@
+PC REMOTE - control your Windows PC from your phone
+=====================================================
+Trackpad, keyboard, music & volume, open apps, see your screen,
+send files, clipboard, game pad and more.
+Works with iPhone and Android (incl. Samsung). The PC must run Windows.
+
+SETUP (one time, about 5 minutes)
+---------------------------------
+1. Install Python on the PC:  https://www.python.org/downloads/
+   Click the big yellow "Download Python" button and install it.
+   If you see a box "Add python.exe to PATH", tick it.
+
+2. Put server.py somewhere it can stay (e.g. Documents\PC Remote)
+   and double-click it.
+   - If Windows Firewall asks, click Allow.
+   - A black window opens with a QR code. Keep it open while you use the remote.
+
+3. Phone on the SAME Wi-Fi as the PC: open the camera and scan the QR code.
+   (Or type the link shown under the QR code into Safari / Chrome /
+   Samsung Internet - don't tap it from Discord, it opens the wrong browser.)
+
+4. Add it to your Home Screen so it works like an app:
+   iPhone:           Share button > Add to Home Screen
+   Android (Chrome): 3-dot menu > Add to Home screen
+   Samsung Internet: menu (3 lines) > Add page to > Home screen
+   Open it from the icon. Top right should say "Connected".
+
+TIPS
+----
+- Screen tab > 📱 makes the app on the PC phone-sized, so it's easy to read.
+- More tab > Settings: natural scrolling, scroll speed and more.
+- Files you send from the phone land in Downloads\PC Remote on the PC.
+
+START WITH WINDOWS (optional)
+-----------------------------
+Right-click server.py > Show more options > Create shortcut.
+Press Windows key + R, type  shell:startup  and press Enter.
+Move the shortcut into the folder that opens.
+
+PROBLEMS
+--------
+"Wrong key"          Scan the QR code again (or retype the link exactly).
+"PC not reachable"   Phone must be on the same Wi-Fi (not mobile data or a
+                     guest network) and the black window must be open.
+                     Samsung: turn off Secure Wi-Fi / VPN on the phone.
+                     Still stuck? On the PC, right-click Start > Terminal (Admin):
+                     netsh advfirewall firewall add rule name="PC Remote" dir=in action=allow protocol=TCP localport=8765
+                     If it still fails, the router may block devices from
+                     talking to each other ("AP isolation") - turn that off
+                     in the router settings.
+"Smart App Control"  Don't use any .bat file - just double-click server.py.
+Lost the link?       Double-click server.py again; the window shows it.
