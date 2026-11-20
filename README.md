@@ -66,7 +66,7 @@ Files you send from your phone go to **Downloads ▸ PC Remote**. Put files in t
 
 ## Security
 
-- The link and QR code contain a random key, and the PC ignores requests without it. The key is saved in `config.json` next to `server.py`. Delete that file to make a new one.
+- The link and QR code contain a random key, and the PC ignores requests without it. The key is saved in `%APPDATA%\PC Remote\config.json`, so it stays the same even if you move `server.py` or download a new version. To make a new key, delete that file (and any old `config.json` next to `server.py`).
 - Traffic is **not encrypted**, so use it on your home Wi-Fi only. **Do not** forward the port on your router to the internet. To use it away from home, install [Tailscale](https://tailscale.com) on the PC and the phone, and use the PC's Tailscale address in the link.
 - Uploads can only go into the `Downloads\PC Remote` folder, and downloads can only come from it.
 

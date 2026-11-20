@@ -33,10 +33,27 @@ from urllib.parse import urlparse, parse_qs, quote
 VERSION = "2.1"
 PORT = int(os.environ.get("REMOTE_PORT", "8765"))
 HERE = Path(__file__).resolve().parent
-CONFIG = HERE / "config.json"
-BUTTONS_FILE = HERE / "buttons.json"
-SHARE_DIR = Path.home() / "Downloads" / "PC Remote"   # files sent from the phone land here
 IS_WINDOWS = sys.platform == "win32"
+
+
+def _data_dir():
+    """One fixed folder for settings, so the access key never changes, wherever server.py is
+    run from (e.g. a fresh download)."""
+    base = Path(os.environ.get("APPDATA") or Path.home()) if IS_WINDOWS else Path.home() / ".config"
+    d = base / "PC Remote"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    except OSError:
+        return HERE
+
+
+DATA_DIR = _data_dir()
+CONFIG = DATA_DIR / "config.json"
+BUTTONS_FILE = DATA_DIR / "buttons.json"
+# older versions kept these next to server.py; they're picked up automatically
+OLD_CONFIG, OLD_BUTTONS = HERE / "config.json", HERE / "buttons.json"
+SHARE_DIR = Path.home() / "Downloads" / "PC Remote"   # files sent from the phone land here
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW for helper processes
 
 
@@ -1471,14 +1488,33 @@ def qr_text(text):
 # HTTP + WebSocket server
 # ==========================================================================
 def load_key():
-    try:
-        return json.loads(CONFIG.read_text())["key"]
-    except Exception:
-        # no look-alike characters (O/0, l/1/I) so it's easy to type on a phone
-        alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
-        key = "".join(secrets.choice(alphabet) for _ in range(10))
-        CONFIG.write_text(json.dumps({"key": key}))
-        return key
+    # 1) the fixed settings folder, 2) a config.json next to server.py from an older
+    # version (moved over, so existing phone links keep working), 3) a brand-new key
+    for f in (CONFIG, OLD_CONFIG):
+        try:
+            key = json.loads(f.read_text())["key"]
+            if key:
+                if f != CONFIG:
+                    CONFIG.write_text(json.dumps({"key": key}))
+                return key
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    # no look-alike characters (O/0, l/1/I) so it's easy to type on a phone
+    alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+    key = "".join(secrets.choice(alphabet) for _ in range(10))
+    CONFIG.write_text(json.dumps({"key": key}))
+    return key
+
+
+def _move_old_buttons():
+    if not BUTTONS_FILE.exists() and OLD_BUTTONS.exists() and OLD_BUTTONS != BUTTONS_FILE:
+        try:
+            BUTTONS_FILE.write_text(OLD_BUTTONS.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            pass
+
+
+_move_old_buttons()
 
 
 KEY = load_key()
