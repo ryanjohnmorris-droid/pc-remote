@@ -1009,7 +1009,7 @@ button { cursor: pointer; }
     h += "</div>";
     // bills
     var bills = state.bills.slice().sort(function (a, b) { return billNext(a) < billNext(b) ? -1 : 1; }), mTot = 0;
-    h += '<div class="panel"><div class="phead"><h3>Bills &amp; subscriptions</h3><button class="link" data-act="add-bill">Add</button></div>';
+    h += '<div class="panel"><div class="phead"><h3>Bills &amp; subscriptions</h3><span style="display:flex;gap:14px"><button class="link" data-act="subs">Pick from list</button><button class="link" data-act="add-bill">Add</button></span></div>';
     findSubscriptions().forEach(function (f) {
       h += '<div class="banner" style="border-style:solid;margin:0 0 12px"><span>Looks like a monthly charge: <b style="color:var(--ink)">' + esc(f.name) + "</b> " + money(f.amount) + ' around the ' + f.day + ordinal(f.day) + '.</span><span style="display:flex;gap:10px"><button data-act="sub-no" data-k="' + esc(f.key) + '" style="color:var(--muted)">No</button><button data-act="sub-add" data-k="' + esc(f.key) + '">Add as bill</button></span></div>';
     });
@@ -1283,6 +1283,34 @@ button { cursor: pointer; }
         return '<label class="field"><span>' + esc(c) + '</span><input class="input num" data-cat="' + esc(c) + '" inputmode="decimal" placeholder="No limit" value="' + amtStr(state.budgets[c] || 0) + '"></label>';
       }).join("") + '<button class="btn" data-act="save-budgets">Save budgets</button>', { kind: "budgets" });
   }
+  var POPULAR_SUBS = [
+    ["Netflix", "Fun"], ["Spotify", "Fun"], ["Apple Music", "Fun"], ["iCloud+", "Bills"], ["YouTube Premium", "Fun"], ["Disney+", "Fun"],
+    ["Hulu", "Fun"], ["Max", "Fun"], ["Amazon Prime", "Shopping"], ["Paramount+", "Fun"], ["Peacock", "Fun"], ["Apple TV+", "Fun"],
+    ["Apple One", "Bills"], ["Xbox Game Pass", "Fun"], ["PlayStation Plus", "Fun"], ["Nintendo Switch Online", "Fun"], ["Discord Nitro", "Fun"],
+    ["Snapchat+", "Fun"], ["ChatGPT Plus", "Bills"], ["Claude Pro", "Bills"], ["Crunchyroll", "Fun"], ["Audible", "Fun"], ["Duolingo", "Other"],
+    ["Gym", "Health"], ["Phone plan", "Bills"], ["Internet", "Bills"], ["Car insurance", "Bills"], ["Rent", "Bills"]
+  ];
+  function subsPicker() {
+    var have = state.bills.map(function (b) { return b.name.toLowerCase(); });
+    var list = POPULAR_SUBS.filter(function (x) { return have.indexOf(x[0].toLowerCase()) < 0; });
+    openSheet(shead("Add your subscriptions") +
+      '<p style="margin:0;color:var(--muted)">Tap the ones you pay for, then fill in the price and the day of the month you’re charged. They’ll be logged in Money automatically every month.</p>' +
+      '<p class="hint" style="text-align:left">Not sure what you pay for? Check <b>Settings → your name → Subscriptions</b> for anything billed through Apple, and your bank statement for the rest.</p>' +
+      '<div class="chips" id="subsPick">' + list.map(function (x, i) { return '<button type="button" class="subchip" data-act="sub-pick" data-i="' + POPULAR_SUBS.indexOf(x) + '" aria-pressed="false">' + esc(x[0]) + "</button>"; }).join("") + "</div>" +
+      '<div id="subsRows" class="stackv"></div>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="subs-save">Add selected</button>' +
+      '<button class="btn alt" data-act="add-bill">Something else? Add it yourself</button>', { kind: "subs", picked: [] });
+  }
+  function drawSubRows() {
+    var keep = {};
+    document.querySelectorAll("#subsRows [data-sub]").forEach(function (r) { keep[r.dataset.sub] = { a: r.querySelector(".sa").value, d: r.querySelector(".sd").value }; });
+    $("subsRows").innerHTML = sheetCtx.picked.map(function (i) {
+      var x = POPULAR_SUBS[i], k = keep[i] || { a: "", d: "" };
+      return '<div class="panel" data-sub="' + i + '" style="box-shadow:none;background:var(--surface-2);padding:12px"><b>' + esc(x[0]) + '</b><div class="inrow" style="margin-top:8px">' +
+        '<label class="field" style="flex:1;min-width:0"><span>Price a month</span><input class="input num sa" inputmode="decimal" placeholder="0.00" value="' + esc(k.a) + '"></label>' +
+        '<label class="field" style="max-width:130px"><span>Day charged</span><input class="input num sd" type="number" inputmode="numeric" min="1" max="31" placeholder="1–31" value="' + esc(k.d) + '"></label></div></div>';
+    }).join("");
+  }
   function billForm(b) {
     var isNew = !b; b = b || { name: "", amount: 0, cat: "Bills", pay: "", day: new Date().getDate() };
     openSheet(shead(isNew ? "Add a bill" : "Edit bill") +
@@ -1316,6 +1344,7 @@ button { cursor: pointer; }
   }
   function planAdd() {
     openSheet(shead("Add to your plan") +
+      '<button class="btn alt" data-act="subs">Subscriptions (pick from a list)</button>' +
       '<button class="btn alt" data-act="add-bill">A bill or subscription</button>' +
       '<button class="btn alt" data-act="add-goal">A savings goal</button>' +
       '<button class="btn alt" data-act="add-iou">Money someone owes</button>' +
@@ -1530,7 +1559,7 @@ button { cursor: pointer; }
     var del = e.target.closest('[data-act="photo-del"]');
     if (del && sheetCtx) { e.stopPropagation(); sheetCtx[del.dataset.side] = ""; drawPhotos(); return; }
     var seg = e.target.closest(".seg button, .chips button, .swatches button");
-    if (seg && seg.parentElement.id) {
+    if (seg && seg.parentElement.id && seg.parentElement.id !== "subsPick") {
       var gid = seg.parentElement.id;
       seg.parentElement.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === seg)); });
       if (gid === "f-type") { sheetCtx.type = seg.dataset.v; typeChanged(); }
@@ -1657,6 +1686,26 @@ button { cursor: pointer; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
       case "undo": undo(); break;
+      case "subs": subsPicker(); break;
+      case "sub-pick":
+        var pi = +el.dataset.i, at = sheetCtx.picked.indexOf(pi);
+        if (at >= 0) sheetCtx.picked.splice(at, 1); else sheetCtx.picked.push(pi);
+        el.setAttribute("aria-pressed", String(at < 0)); drawSubRows(); break;
+      case "subs-save":
+        if (!sheetCtx.picked.length) { $("f-err").textContent = "Tap at least one subscription first."; return; }
+        var rows = [], bad = "";
+        document.querySelectorAll("#subsRows [data-sub]").forEach(function (r) {
+          var x = POPULAR_SUBS[+r.dataset.sub], a = parseAmt(r.querySelector(".sa").value), d = parseInt(r.querySelector(".sd").value, 10);
+          if (!(a > 0)) bad = bad || "Add the monthly price for " + x[0] + ".";
+          else if (!(d >= 1 && d <= 31)) bad = bad || "Add the day " + x[0] + " charges you (1–31).";
+          rows.push({ x: x, a: a, d: d });
+        });
+        if (bad) { $("f-err").textContent = bad; return; }
+        var nowS = new Date(), curS = monthKey(nowS), outCats = catNames("out");
+        rows.forEach(function (r) {
+          state.bills.push({ id: uid(), name: r.x[0], amount: r.a, day: r.d, cat: outCats.indexOf(r.x[1]) >= 0 ? r.x[1] : (outCats.indexOf("Bills") >= 0 ? "Bills" : outCats[0]), pay: "", start: r.d >= nowS.getDate() ? curS : shiftMonth(curS, 1), posted: null });
+        });
+        closeSheet(); ui.tab = "plan"; commit(); toast("Added " + rows.length + " subscription" + (rows.length === 1 ? "" : "s")); break;
       case "share-app-sheet": shareAppSheet(); break;
       case "share-app":
         var su = appUrl(), msg = "Here’s a free app I use to keep my cards and track spending. Open it in Safari and tap Share → Add to Home Screen:";
