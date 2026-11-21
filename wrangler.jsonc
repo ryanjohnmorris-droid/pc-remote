@@ -1,0 +1,8 @@
+// Cloudflare Workers settings: serves the Wallet app (the files in ./wallet) as a static site.
+{
+  "name": "pocketwallet",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./wallet"
+  }
+}
