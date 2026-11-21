@@ -257,6 +257,7 @@ button { cursor: pointer; }
 <input type="file" id="restoreFile" accept="application/json,.json" hidden>
 <input type="file" id="photoFile" accept="image/*" hidden>
 <input type="file" id="scanFile" accept="image/*" hidden>
+<input type="file" id="importFile" accept=".txt,text/plain,.csv" hidden>
 <script src="jsbarcode.min.js"></script>
 <script src="qrcode.js"></script>
 <script>
@@ -317,7 +318,13 @@ button { cursor: pointer; }
     try { return new Intl.NumberFormat(undefined, { style: "currency", currency: state.currency, notation: "compact", maximumFractionDigits: 1 }).format(cents / 100); }
     catch (e) { return String(Math.round(cents / 100)); }
   }
-  function parseAmt(str) { var v = parseFloat(String(str || "").replace(/[^\d.,]/g, "").replace(",", ".")); return isFinite(v) ? Math.round(v * 100) : 0; }
+  function parseAmt(str) {
+    var x = String(str || "").replace(/[^\d.,]/g, "");
+    var lc = x.lastIndexOf(","), ld = x.lastIndexOf(".");
+    if (lc >= 0 && ld >= 0) x = lc > ld ? x.replace(/\./g, "").replace(",", ".") : x.replace(/,/g, "");
+    else if (lc >= 0) x = /,\d{1,2}$/.test(x) && x.split(",").length === 2 ? x.replace(",", ".") : x.replace(/,/g, "");
+    var v = parseFloat(x); return isFinite(v) ? Math.round(v * 100) : 0;
+  }
   function amtStr(c) { return c ? (c / 100).toFixed(2) : ""; }
   function groupNo(n) { var s = String(n || "").replace(/\s+/g, ""); return s.length > 6 ? s.replace(/(.{4})(?=.)/g, "$1 ") : s; }
   var undoStack = [], lastSaved = null, justChanged = false;
@@ -346,6 +353,7 @@ button { cursor: pointer; }
     var okCats = function (l) { return Array.isArray(l) && l.length && l.every(function (c) { return c && typeof c.name === "string"; }); };
     if (d.cats && okCats(d.cats.out) && okCats(d.cats.in)) b.cats = { out: d.cats.out, in: d.cats.in };
     if (!b.cats.in.some(function (c) { return c.name === "Paid back"; })) b.cats.in.splice(Math.max(0, b.cats.in.length - 1), 0, { name: "Paid back", color: "#3E9C8F" });
+    b.imported = Array.isArray(d.imported) ? d.imported : [];
     ["created", "lastBackup", "snoozeBackup", "reportSeen", "openTo"].forEach(function (k) { if (d[k] != null) b[k] = d[k]; });
     if (!b.created) b.created = Date.now();
     return b;
@@ -529,8 +537,8 @@ button { cursor: pointer; }
   }
 
   function renderMoneyShell() {
-    var head = '<div class="row" style="justify-content:flex-end;margin-bottom:12px;align-items:center"><label class="label" for="currency">Currency</label>' +
-      '<select class="curr" id="currency">' + CURRENCIES.map(function (c) { return "<option" + (c === state.currency ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div>";
+    var head = '<div class="row" style="justify-content:space-between;margin-bottom:12px;align-items:center"><button class="btn alt sm" data-act="import-open" style="flex:none">⬇ Import Apple Pay</button><span style="display:flex;gap:8px;align-items:center"><label class="label" for="currency">Currency</label>' +
+      '<select class="curr" id="currency">' + CURRENCIES.map(function (c) { return "<option" + (c === state.currency ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></span></div>";
     if (!state.tx.length) {
       return head + '<div class="panel balance"><div class="label">Balance</div><div class="amt num">' + money(0) + '</div><div class="sub">Nothing logged yet</div></div>' +
         '<div class="empty"><h3>Track where your money goes</h3><p>Log what you spend and what comes in. You’ll see your balance, a chart and a breakdown for each month.</p>' +
@@ -554,6 +562,7 @@ button { cursor: pointer; }
         var tag = rf ? '<span class="tag">' + (rf >= t.amount ? "Refunded" : money(rf) + " refunded") + "</span>" : "";
         if (t.type === "out" && splitOf(t.id).length) tag += '<span class="tag">Split</span>';
         if (t.receipt) pn = (pn ? pn + " · " : "") + "🧾";
+        if (t.fromApplePay) pn = (pn ? pn + " · " : "") + "Apple Pay";
         if (an) pn = (pn ? pn + " · " : "") + an;
         return '<div class="swipe"><button class="swdel" data-act="swipe-del" data-id="' + esc(t.id) + '" tabindex="-1">Delete</button>' +
           '<button class="tx" data-act="open-tx" data-id="' + esc(t.id) + '"><span class="ic" style="background:' + col + '">' + esc((t.cat || "?").charAt(0)) +
@@ -748,6 +757,88 @@ button { cursor: pointer; }
       (isNew || state.cats[type].length < 2 ? "" : '<button class="btn danger" data-act="del-cat">Delete category</button><p class="hint">Past entries keep this name, shown in grey.</p>'),
       { kind: "catform", type: type, i: isNew ? null : i, color: c.color });
   }
+
+  // ---------- Apple Pay import (from an iPhone Shortcuts automation) ----------
+  var GUESS = [
+    ["Food", /coffee|starbucks|caf[eé]|mcdonald|burger|pizza|restaurant|kfc|subway|taco|chipotle|dunkin|bakery|\bbar\b|grill|doordash|uber ?eats|deliveroo|wendy|chick|domino|diner|kitchen/i],
+    ["Groceries", /grocer|market|walmart|kroger|aldi|lidl|tesco|safeway|costco|whole ?foods|trader ?joe|sainsbury|publix|asda|morrisons|wegmans|h-?e-?b|food ?lion|sprouts/i],
+    ["Transport", /shell|\bbp\b|exxon|chevron|mobil|texaco|\bgas\b|fuel|petrol|uber|lyft|transit|metro|parking|train|rail|bus|toll/i],
+    ["Health", /pharmac|cvs|walgreens|boots|clinic|dental|doctor|hospital|rite ?aid/i],
+    ["Fun", /cinema|movie|theat|netflix|spotify|steam|playstation|xbox|nintendo|concert|ticket|bowling/i],
+    ["Shopping", /amazon|target|best ?buy|ikea|store|shop|apple|nike|zara|h&m|primark|mall/i]
+  ];
+  function guessCat(merchant) {
+    var have = catNames("out");
+    for (var i = 0; i < GUESS.length; i++) if (have.indexOf(GUESS[i][0]) >= 0 && GUESS[i][1].test(merchant)) return GUESS[i][0];
+    return have.indexOf("Other") >= 0 ? "Other" : have[0];
+  }
+  function matchCard(name) {
+    var n = (name || "").toLowerCase().trim(); if (!n) return "";
+    var best = "";
+    state.cards.forEach(function (c) {
+      if (c.format !== "bank" && c.balance == null) return;
+      var cn = c.name.toLowerCase();
+      if (cn === n || n.indexOf(cn) >= 0 || cn.indexOf(n) >= 0 || (c.number && n.indexOf(c.number) >= 0)) best = best || c.id;
+    });
+    return best;
+  }
+  function parseDateLoose(str) {
+    str = (str || "").trim(); if (!str) return null;
+    var m = str.match(/(\d{4})-(\d{2})-(\d{2})/); if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    var MO = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    m = str.match(/([A-Za-z]{3})[a-z]*\.? (\d{1,2}),? (\d{4})/); if (m && MO[m[1].toLowerCase()]) return m[3] + "-" + pad(MO[m[1].toLowerCase()]) + "-" + pad(+m[2]);
+    m = str.match(/(\d{1,2}) ([A-Za-z]{3})[a-z]*\.? (\d{4})/); if (m && MO[m[2].toLowerCase()]) return m[3] + "-" + pad(MO[m[2].toLowerCase()]) + "-" + pad(+m[1]);
+    var d = new Date(str.replace(/ at /i, " ")); return isNaN(d) ? null : ymd(d);
+  }
+  // Each line: date | amount | store | card   (anything missing is filled in)
+  function importText(text) {
+    var added = 0, skipped = 0, seen = {};
+    state.imported.forEach(function (k) { seen[k] = 1; });
+    String(text || "").split(/\r?\n/).forEach(function (line) {
+      var raw = line.trim(); if (!raw) return;
+      var parts = raw.split("|").map(function (x) { return x.trim(); });
+      if (parts.length < 2) return;
+      var amt = parseAmt(parts[1]); if (!(amt > 0)) return;
+      if (seen[raw]) { skipped++; return; }
+      seen[raw] = 1; state.imported.push(raw);
+      var store = parts[2] || "Apple Pay purchase", pay = matchCard(parts[3]), card = byId(state.cards, pay);
+      var t = { id: uid(), type: "out", amount: amt, cat: guessCat(store), note: store, date: parseDateLoose(parts[0]) || ymd(new Date()), pay: pay, created: Date.now(), fromApplePay: true };
+      if (card && card.acct) t.acct = card.acct; else if (state.accounts.length === 1) t.acct = state.accounts[0].id;
+      state.tx.push(t); added++;
+    });
+    if (state.imported.length > 3000) state.imported = state.imported.slice(-3000);
+    return { added: added, skipped: skipped };
+  }
+  function importDone(r) {
+    if (!r.added && !r.skipped) { toast("No purchases found in that"); return; }
+    closeSheet(); ui.tab = "money"; ui.month = monthKey(new Date()); commit();
+    toast(r.added ? "Added " + r.added + " purchase" + (r.added === 1 ? "" : "s") + (r.skipped ? " · " + r.skipped + " already added" : "") : "No new purchases · " + r.skipped + " already added");
+  }
+  function importSheet() {
+    var n = state.tx.filter(function (t) { return t.fromApplePay; }).length;
+    openSheet(shead("Import Apple Pay purchases") +
+      '<p style="margin:0;color:var(--muted)">Your iPhone can note every Apple Pay purchase in a file. Import it here and the purchases are added to Money, with a category guessed from the store’s name. Anything already imported is skipped.</p>' +
+      '<button class="btn" data-act="import-file">Choose “Wallet purchases” file</button>' +
+      '<button class="btn alt" data-act="import-paste">Paste from clipboard</button>' +
+      '<button class="btn alt" data-act="import-help">How to set it up (one time, free)</button>' +
+      (n ? '<p class="hint">' + n + " purchase" + (n === 1 ? "" : "s") + " imported so far.</p>" : ""), { kind: "import" });
+  }
+  function importHelp() {
+    var step = function (n2, t) { return '<div style="display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start"><span class="ic" style="width:28px;height:28px;border-radius:9px;font-size:13px;background:var(--accent);color:var(--accent-ink)">' + n2 + "</span><div>" + t + "</div></div>"; };
+    openSheet(shead("Log Apple Pay purchases") +
+      '<p style="margin:0;color:var(--muted)">Uses the free Shortcuts app that’s already on your iPhone. Your card must be in Apple Wallet, and it works when you pay by tapping your phone or watch in a shop.</p>' +
+      step(1, "Open the <b>Shortcuts</b> app, tap <b>Automation</b> at the bottom, then <b>+</b> (or <b>New Automation</b>).") +
+      step(2, "Choose <b>Transaction</b>. Pick your card(s), leave the other options as they are, select <b>Run Immediately</b>, then tap <b>Next</b> and <b>New Blank Automation</b>.") +
+      step(3, "Tap <b>Add Action</b>, search for <b>Text</b> and add it. In the text box, insert these variables with <b>|</b> between them (tap the box, then the variable names above the keyboard):<br><span class=\"num\" style=\"font-family:var(--f-mono);font-size:13px;display:block;background:var(--surface-2);border-radius:10px;padding:10px;margin-top:6px\">Current Date | Amount | Merchant | Card or Pass</span>") +
+      step(4, "Search for <b>Append to Text File</b> and add it. Set the file path to <b>Wallet purchases.txt</b> and turn on <b>Make New Line</b>. Tap <b>Done</b>.") +
+      step(5, "Pay with Apple Pay as normal. When you open this app, tap <b>Import</b> in the Money tab and choose <b>Wallet purchases.txt</b> (it’s in iCloud Drive › Shortcuts).") +
+      '<p class="hint" style="text-align:left">Online purchases and swiping the plastic card don’t trigger it, so log those yourself. Your bank isn’t connected and nothing leaves your phone.</p>' +
+      '<button class="btn alt" data-act="import-open">Back to import</button>', { kind: "importhelp" });
+  }
+  $("importFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    var r = new FileReader(); r.onload = function () { importDone(importText(r.result)); }; r.readAsText(f);
+  });
 
   // ---------- calendar (bills) ----------
   function icsText() {
@@ -1430,6 +1521,14 @@ button { cursor: pointer; }
         var dn = state.cats[sheetCtx.type][sheetCtx.i].name; state.cats[sheetCtx.type].splice(sheetCtx.i, 1);
         if (sheetCtx.type === "out") delete state.budgets[dn];
         commit(); catsSheet(); toast("Category deleted"); break;
+      case "import-open": importSheet(); break;
+      case "import-help": importHelp(); break;
+      case "import-file": $("importFile").click(); break;
+      case "import-paste":
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          navigator.clipboard.readText().then(function (txt) { importDone(importText(txt)); }, function () { toast("Couldn’t read the clipboard. Tap Paste when your iPhone asks."); });
+        } else toast("Pasting isn’t available here. Use the file instead.");
+        break;
       case "calendar":
         shareOrDownload(new File([icsText()], "bills.ics", { type: "text/calendar" }), "Calendar file ready"); break;
       case "backup": backup(); break;
