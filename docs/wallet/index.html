@@ -941,7 +941,7 @@ button { cursor: pointer; }
     }).join("");
     var doneCount = Object.keys(guideDone).filter(function (k) { return guideDone[k]; }).length;
     openSheet(shead("Set up Apple Pay logging") +
-      '<p style="margin:0;color:var(--muted)">A one-time setup in the free Shortcuts app (about 5 minutes). Do one step at a time and tap it to tick it off. Stuck? Send Claude a screenshot.</p>' +
+      '<p style="margin:0;color:var(--muted)">A one-time setup in the free Shortcuts app (about 5 minutes). Do one step at a time and tap it to tick it off.</p>' +
       '<div class="meter goal"><span style="width:' + Math.round(doneCount / total * 100) + '%"></span></div>' + html +
       '<div class="row"><button class="btn alt" data-act="guide-reset">Clear ticks</button><button class="btn" data-act="import-open">Back to import</button></div>', { kind: "importhelp" });
   }
