@@ -192,6 +192,7 @@ button { cursor: pointer; }
 .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .photo .x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; font-size: 14px; }
 .bigphoto { width: 100%; border-radius: 14px; display: block; }
+.photo.receipt { aspect-ratio: auto; height: 96px; width: 100%; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px); z-index: 60;
   transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
   font-size: 14px; font-weight: 500; opacity: 0; transition: .2s ease; pointer-events: none; white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
@@ -266,10 +267,12 @@ button { cursor: pointer; }
   var SWATCH = { cobalt: "#3B67F0", ember: "#EE6A40", forest: "#22966B", plum: "#8148DA", graphite: "#4A505E", gold: "#D6A11E", rose: "#E5588A", teal: "#1A9FB2" };
   var FORMATS = [["bank", "Bank card"], ["code128", "Barcode"], ["ean13", "EAN-13"], ["qr", "QR code"], ["none", "No code"]];
   var FMT_LABEL = { bank: "Debit / credit", code128: "Barcode", ean13: "EAN-13", qr: "QR", none: "Card" };
-  var OUT_CATS = ["Food", "Groceries", "Transport", "Shopping", "Bills", "Fun", "Health", "Other"];
-  var IN_CATS = ["Pay", "Gift", "Refund", "Savings", "Other"];
-  var CAT_COLOR = { Food: "#EE6A40", Groceries: "#22966B", Transport: "#3B67F0", Shopping: "#E5588A", Bills: "#8148DA",
-    Fun: "#D6A11E", Health: "#1A9FB2", Other: "#6B7280", Pay: "#188A5E", Gift: "#C2508A", Refund: "#2F7FB8", Savings: "#4B6BD6" };
+  var DEF_CATS = {
+    out: [["Food", "#EE6A40"], ["Groceries", "#22966B"], ["Transport", "#3B67F0"], ["Shopping", "#E5588A"], ["Bills", "#8148DA"], ["Fun", "#D6A11E"], ["Health", "#1A9FB2"], ["Other", "#6B7280"]],
+    in: [["Pay", "#188A5E"], ["Gift", "#C2508A"], ["Refund", "#2F7FB8"], ["Paid back", "#3E9C8F"], ["Savings", "#4B6BD6"], ["Other", "#6B7280"]]
+  };
+  var CAT_SWATCH = ["#EE6A40", "#22966B", "#3B67F0", "#E5588A", "#8148DA", "#D6A11E", "#1A9FB2", "#6B7280", "#C2508A", "#2F7FB8", "#3E9C8F", "#A0622D"];
+  var ACCT_KINDS = ["Bank", "Cash", "Savings", "Other"];
   var CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "NZD", "JPY", "INR", "MXN", "ZAR", "CHF", "SEK"];
 
   var state = blank();
@@ -277,7 +280,14 @@ button { cursor: pointer; }
   var lockCfg = null, locked = false, coverOnly = false, hiddenAt = 0;
 
   // ---------- helpers ----------
-  function blank() { return { cards: [], tx: [], currency: "USD", budgets: {}, bills: [], goals: [] }; }
+  function blank() { return { cards: [], tx: [], currency: "USD", budgets: {}, bills: [], goals: [], accounts: [], ious: [], cats: defCats() }; }
+  function defCats() { var f = function (c) { return { name: c[0], color: c[1] }; }; return { out: DEF_CATS.out.map(f), in: DEF_CATS.in.map(f) }; }
+  function catNames(type) { return state.cats[type].map(function (c) { return c.name; }); }
+  function catColor(n) {
+    var all = state.cats.out.concat(state.cats.in);
+    for (var i = 0; i < all.length; i++) if (all[i].name === n) return all[i].color;
+    return "#6B7280";
+  }
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
@@ -332,11 +342,17 @@ button { cursor: pointer; }
     b.budgets = d.budgets && typeof d.budgets === "object" ? d.budgets : {};
     b.bills = Array.isArray(d.bills) ? d.bills : []; b.goals = Array.isArray(d.goals) ? d.goals : [];
     if (d.sampleBudgets) b.sampleBudgets = true;
+    b.accounts = Array.isArray(d.accounts) ? d.accounts : []; b.ious = Array.isArray(d.ious) ? d.ious : [];
+    var okCats = function (l) { return Array.isArray(l) && l.length && l.every(function (c) { return c && typeof c.name === "string"; }); };
+    if (d.cats && okCats(d.cats.out) && okCats(d.cats.in)) b.cats = { out: d.cats.out, in: d.cats.in };
+    if (!b.cats.in.some(function (c) { return c.name === "Paid back"; })) b.cats.in.splice(Math.max(0, b.cats.in.length - 1), 0, { name: "Paid back", color: "#3E9C8F" });
+    ["created", "lastBackup", "snoozeBackup", "reportSeen", "openTo"].forEach(function (k) { if (d[k] != null) b[k] = d[k]; });
+    if (!b.created) b.created = Date.now();
     return b;
   }
   function hasSample() {
     var f = function (x) { return x.sample; };
-    return state.cards.some(f) || state.tx.some(f) || state.bills.some(f) || state.goals.some(f) || !!state.sampleBudgets;
+    return state.cards.some(f) || state.tx.some(f) || state.bills.some(f) || state.goals.some(f) || state.accounts.some(f) || state.ious.some(f) || !!state.sampleBudgets;
   }
 
   // ---------- storage (IndexedDB, falls back to localStorage) ----------
@@ -394,7 +410,7 @@ button { cursor: pointer; }
   function giftLeft(c) {
     if (c.balance == null) return null;
     var left = c.balance;
-    state.tx.forEach(function (t) { if (t.pay === c.id) left += t.type === "in" ? t.amount : -t.amount; });
+    state.tx.forEach(function (t) { if (t.pay === c.id && t.type !== "move") left += t.type === "in" ? t.amount : -t.amount; });
     return left;
   }
   function payOpts() {
@@ -415,11 +431,28 @@ button { cursor: pointer; }
     state.tx.forEach(function (t) {
       if (t.date.slice(0, 7) !== month) return;
       if (t.type === "out") o[t.cat] = (o[t.cat] || 0) + t.amount;
-      else if (t.refundOf && t.forCat) o[t.forCat] = (o[t.forCat] || 0) - t.amount;
+      else if (t.type === "in" && t.forCat) o[t.forCat] = (o[t.forCat] || 0) - t.amount;
     });
     Object.keys(o).forEach(function (k) { if (o[k] <= 0) delete o[k]; });
     return o;
   }
+  function acctName(id) { var a = byId(state.accounts, id); return a ? a.name : ""; }
+  function acctBal(a) {
+    var b = a.start || 0;
+    state.tx.forEach(function (t) {
+      if (t.type === "in" && t.acct === a.id) b += t.amount;
+      else if (t.type === "out" && t.acct === a.id) b -= t.amount;
+      else if (t.type === "move") { if (t.acct === a.id) b -= t.amount; if (t.to === a.id) b += t.amount; }
+    });
+    return b;
+  }
+  function totalBalance() {
+    var b = 0;
+    state.accounts.forEach(function (a) { b += a.start || 0; });
+    state.tx.forEach(function (t) { if (t.type === "in") b += t.amount; else if (t.type === "out") b -= t.amount; });
+    return b;
+  }
+  function splitOf(id) { return state.ious.filter(function (o) { return o.txId === id; }); }
   function refunded(id) { var r = 0; state.tx.forEach(function (t) { if (t.refundOf === id) r += t.amount; }); return r; }
   function billNext(b) { var m = b.posted ? shiftMonth(b.posted, 1) : b.start; return m + "-" + pad(Math.min(b.day, daysIn(m))); }
   function postBills() {
@@ -445,12 +478,27 @@ button { cursor: pointer; }
     $("title").textContent = TITLES[ui.tab];
     $("addBtn").setAttribute("aria-label", ui.tab === "cards" ? "Add card" : ui.tab === "money" ? "Add entry" : "Add to plan");
     ["cards", "money", "plan"].forEach(function (t) { $("tab-" + t).setAttribute("aria-selected", String(ui.tab === t)); });
-    var banner = hasSample() ? '<div class="banner"><span>You’re looking at example data.</span><button data-act="clear-sample">Remove examples</button></div>' : "";
+    var banner = hasSample() ? '<div class="banner"><span>You’re looking at example data.</span><button data-act="clear-sample">Remove examples</button></div>' : backupBanner();
+    if (ui.tab === "money") banner += reportBanner();
     if (ui.tab === "cards") $("view").innerHTML = banner + renderCardsShell();
     else if (ui.tab === "money") $("view").innerHTML = banner + renderMoneyShell();
     else $("view").innerHTML = banner + renderPlan();
     if (ui.tab === "cards" && $("cardsBody")) $("cardsBody").innerHTML = renderCardsBody();
     if (ui.tab === "money" && $("moneyBody")) $("moneyBody").innerHTML = renderMoneyBody();
+  }
+
+  function backupBanner() {
+    if (!state.cards.length && !state.tx.length) return "";
+    var now = Date.now(), since = state.lastBackup || state.created || now, days = Math.floor((now - since) / 864e5);
+    if (days < 14 || (state.snoozeBackup && now < state.snoozeBackup)) return "";
+    return '<div class="banner" style="border-style:solid;border-color:var(--warn)"><span>' + (state.lastBackup ? "It’s been " + days + " days since your last backup." : "You haven’t backed up yet.") +
+      '</span><span style="display:flex;gap:12px"><button data-act="snooze-backup" style="color:var(--muted)">Later</button><button data-act="backup">Back up</button></span></div>';
+  }
+  function reportBanner() {
+    var prev = shiftMonth(monthKey(new Date()), -1);
+    if ((state.reportSeen || "") >= prev) return "";
+    if (!state.tx.some(function (t) { return t.date.slice(0, 7) === prev && !t.sample; })) return "";
+    return '<div class="banner" style="border-style:solid"><span>Your ' + esc(monthName(prev, true)) + ' report is ready.</span><button data-act="report" data-m="' + prev + '">View</button></div>';
   }
 
   function cardFace(c, tag) {
@@ -497,8 +545,16 @@ button { cursor: pointer; }
     sorted.forEach(function (t) { if (!cur || cur.d !== t.date) { cur = { d: t.date, items: [] }; groups.push(cur); } cur.items.push(t); });
     return "<div>" + groups.map(function (g) {
       return '<div class="day">' + esc(dayName(g.d)) + '</div><div class="txlist">' + g.items.map(function (t) {
-        var col = CAT_COLOR[t.cat] || "#6B7280", pn = payName(t.pay), rf = t.type === "out" ? refunded(t.id) : 0;
+        if (t.type === "move") {
+          return '<div class="swipe"><button class="swdel" data-act="swipe-del" data-id="' + esc(t.id) + '" tabindex="-1">Delete</button>' +
+            '<button class="tx" data-act="open-tx" data-id="' + esc(t.id) + '"><span class="ic" style="background:#5B6475">⇄</span><span class="t"><b>' + esc(t.note || "Transfer") +
+            "</b><small>" + esc((acctName(t.acct) || "?") + " → " + (acctName(t.to) || "?")) + '</small></span><span class="a num">' + money(t.amount) + "</span></button></div>";
+        }
+        var col = catColor(t.cat), pn = payName(t.pay), rf = t.type === "out" ? refunded(t.id) : 0, an = acctName(t.acct);
         var tag = rf ? '<span class="tag">' + (rf >= t.amount ? "Refunded" : money(rf) + " refunded") + "</span>" : "";
+        if (t.type === "out" && splitOf(t.id).length) tag += '<span class="tag">Split</span>';
+        if (t.receipt) pn = (pn ? pn + " · " : "") + "🧾";
+        if (an) pn = (pn ? pn + " · " : "") + an;
         return '<div class="swipe"><button class="swdel" data-act="swipe-del" data-id="' + esc(t.id) + '" tabindex="-1">Delete</button>' +
           '<button class="tx" data-act="open-tx" data-id="' + esc(t.id) + '"><span class="ic" style="background:' + col + '">' + esc((t.cat || "?").charAt(0)) +
           '</span><span class="t"><b>' + esc(t.note || t.cat) + tag + "</b><small>" + esc(t.cat) + (t.billId ? " · bill" : "") + (pn ? " · " + esc(pn) : "") +
@@ -511,7 +567,7 @@ button { cursor: pointer; }
     var months = []; for (var i = 5; i >= 0; i--) months.push(shiftMonth(endMonth, -i));
     var data = months.map(function (m) {
       var o = { m: m, inc: 0, out: 0 };
-      state.tx.forEach(function (t) { if (t.date.slice(0, 7) === m) { if (t.type === "in") o.inc += t.amount; else o.out += t.amount; } });
+      state.tx.forEach(function (t) { if (t.date.slice(0, 7) === m) { if (t.type === "in") o.inc += t.amount; else if (t.type === "out") o.out += t.amount; } });
       return o;
     });
     var max = Math.max.apply(null, data.map(function (d) { return Math.max(d.inc, d.out); }).concat([1]));
@@ -535,30 +591,32 @@ button { cursor: pointer; }
       var hits = all.filter(function (t) {
         return (t.note + " " + t.cat + " " + payName(t.pay) + " " + (t.amount / 100).toFixed(2)).toLowerCase().indexOf(q) >= 0;
       });
-      var tout = 0, tin = 0; hits.forEach(function (t) { if (t.type === "in") tin += t.amount; else tout += t.amount; });
+      var tout = 0, tin = 0; hits.forEach(function (t) { if (t.type === "in") tin += t.amount; else if (t.type === "out") tout += t.amount; });
       if (!hits.length) return '<div class="empty"><p>No entries match “' + esc(ui.q) + '”.</p></div>';
       return '<div class="stackv"><div class="duo"><div class="panel"><div class="label">' + hits.length + " match" + (hits.length === 1 ? "" : "es") + ' · spent</div><div class="v num neg">' + money(-tout) +
         '</div></div><div class="panel"><div class="label">Money in</div><div class="v num pos">' + money(tin, true) + "</div></div></div>" + txRows(hits) + "</div>";
     }
-    var bal = 0; all.forEach(function (t) { bal += t.type === "in" ? t.amount : -t.amount; });
+    var bal = totalBalance();
     var m = ui.month, list = all.filter(function (t) { return t.date.slice(0, 7) === m; });
     var inc = 0, out = 0, byCat = spentByCat(m);
-    list.forEach(function (t) { if (t.type === "in") inc += t.amount; else out += t.amount; });
+    list.forEach(function (t) { if (t.type === "in") inc += t.amount; else if (t.type === "out") out += t.amount; });
     var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
     var isNow = m >= monthKey(new Date());
     var h = '<div class="stackv">' +
-      '<div class="panel balance"><div class="label">Balance</div><div class="amt num' + (bal < 0 ? " neg" : "") + '">' + money(bal) + '</div><div class="sub">All money in minus all money out · ' + all.length + " entr" + (all.length === 1 ? "y" : "ies") + "</div></div>" +
+      '<div class="panel balance"><div class="label">Balance</div><div class="amt num' + (bal < 0 ? " neg" : "") + '">' + money(bal) + '</div><div class="sub">' + (state.accounts.length ? "Across your accounts" : "All money in minus all money out") + " · " + all.length + " entr" + (all.length === 1 ? "y" : "ies") + "</div></div>" +
+      accountsPanel() +
       '<div class="month"><button data-act="month" data-d="-1" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
       "<h2>" + esc(monthName(m)) + '</h2><button data-act="month" data-d="1" aria-label="Next month"' + (isNow ? " disabled" : "") + '><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
       '<div class="duo"><div class="panel"><div class="label">Money in</div><div class="v num pos">' + money(inc, true) + '</div></div><div class="panel"><div class="label">Spent</div><div class="v num neg">' + money(-out) + "</div></div></div>" +
       '<div class="panel chart"><div class="label" style="margin-bottom:8px">Last 6 months</div>' + chartSvg(m) +
-      '<div class="legend"><span><i style="background:var(--pos)"></i>Money in</span><span><i style="background:var(--neg)"></i>Spent</span></div></div>';
+      '<div class="legend"><span><i style="background:var(--pos)"></i>Money in</span><span><i style="background:var(--neg)"></i>Spent</span></div></div>' +
+      '<button class="btn alt" data-act="report" data-m="' + m + '">📊 ' + esc(monthName(m, true)) + " report</button>";
     if (out > 0) {
       h += '<div class="panel"><div class="label">Spending by category</div><div class="bars">' +
-        cats.map(function (c) { return '<span style="width:' + (byCat[c] / out * 100).toFixed(2) + "%;background:" + (CAT_COLOR[c] || "#6B7280") + '"></span>'; }).join("") +
+        cats.map(function (c) { return '<span style="width:' + (byCat[c] / out * 100).toFixed(2) + "%;background:" + catColor(c) + '"></span>'; }).join("") +
         '</div><div class="cats">' + cats.map(function (c) {
           var lim = state.budgets[c];
-          return '<div class="catrow"><span class="dot" style="background:' + (CAT_COLOR[c] || "#6B7280") + '"></span><span>' + esc(c) + '</span><span class="num' + (lim && byCat[c] > lim ? " neg" : "") + '">' + money(byCat[c]) + (lim ? '<span style="color:var(--muted)"> / ' + compact(lim) + "</span>" : "") +
+          return '<div class="catrow"><span class="dot" style="background:' + catColor(c) + '"></span><span>' + esc(c) + '</span><span class="num' + (lim && byCat[c] > lim ? " neg" : "") + '">' + money(byCat[c]) + (lim ? '<span style="color:var(--muted)"> / ' + compact(lim) + "</span>" : "") +
             '</span><span class="pct num">' + Math.round(byCat[c] / out * 100) + "%</span></div>";
         }).join("") + "</div></div>";
     }
@@ -566,8 +624,149 @@ button { cursor: pointer; }
     return h + "</div>";
   }
 
+  function accountsPanel() {
+    if (!state.accounts.length)
+      return '<div class="panel"><div class="phead" style="margin:0"><div><h3>Accounts</h3><div class="sub" style="margin-top:2px">See separate balances for bank, cash and savings.</div></div><button class="link" data-act="add-acct">Add</button></div></div>';
+    return '<div class="panel"><div class="phead"><h3>Accounts</h3><button class="link" data-act="add-acct">Add</button></div><div class="blist">' +
+      state.accounts.map(function (a) { var b = acctBal(a);
+        return '<button class="item" data-act="edit-acct" data-id="' + esc(a.id) + '"><div class="mrow"><b>' + esc(a.name) + '</b><b class="num' + (b < 0 ? " neg" : "") + '">' + money(b) + '</b></div><div class="mrow" style="font-size:12px"><span>' + esc(a.kind || "Bank") + "</span></div></button>";
+      }).join("") + "</div>" + (state.accounts.length >= 2 ? '<p class="hint" style="text-align:left;margin-top:10px">Moved money between accounts? Tap + and choose Transfer.</p>' : "") + "</div>";
+  }
+  function acctForm(a) {
+    var isNew = !a; a = a || { name: "", kind: "Bank", start: 0 };
+    openSheet(shead(isNew ? "Add an account" : "Edit account") +
+      '<label class="field"><span>Name</span><input class="input" id="f-name" maxlength="30" placeholder="e.g. Chase checking, Cash, Savings" value="' + esc(a.name) + '"></label>' +
+      '<div class="field"><span>Type</span>' + chipGroup("f-kind", ACCT_KINDS, a.kind || "Bank") + "</div>" +
+      '<label class="field"><span>How much is in it right now? (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + (isNew ? "" : (acctBal(a) / 100).toFixed(2)) + '"></label>' +
+      '<p class="hint" style="text-align:left">Entries you log with this account then add to or take from this balance.</p>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-acct">' + (isNew ? "Add account" : "Save changes") + "</button>" +
+      (isNew ? "" : '<button class="btn danger" data-act="del-acct" data-id="' + esc(a.id) + '">Delete account</button><p class="hint">Deleting an account keeps its entries.</p>'),
+      { kind: "acctform", id: isNew ? null : a.id, kindSel: a.kind || "Bank" });
+  }
+
+  // ---------- month report ----------
+  function monthStats(m) {
+    var o = { inc: 0, out: 0, n: 0, big: null, cats: spentByCat(m) };
+    state.tx.forEach(function (t) {
+      if (t.date.slice(0, 7) !== m || t.type === "move") return;
+      o.n++;
+      if (t.type === "in") o.inc += t.amount; else { o.out += t.amount; if (!o.big || t.amount > o.big.amount) o.big = t; }
+    });
+    return o;
+  }
+  function reportSheet(m) {
+    var a = monthStats(m), b = monthStats(shiftMonth(m, -1)), saved = a.inc - a.out;
+    var top = Object.keys(a.cats).sort(function (x, y) { return a.cats[y] - a.cats[x]; }).slice(0, 3);
+    var cmp = "";
+    if (b.out > 0) { var ch = Math.round((a.out - b.out) / b.out * 100); cmp = ch === 0 ? "the same as " : Math.abs(ch) + "% " + (ch > 0 ? "more than " : "less than ") ; cmp = "You spent " + cmp + monthName(shiftMonth(m, -1), true) + "."; }
+    var bl = Object.keys(state.budgets).filter(function (c) { return state.budgets[c] > 0; }), within = bl.filter(function (c) { return (a.cats[c] || 0) <= state.budgets[c]; });
+    var bills = state.tx.filter(function (t) { return t.billId && t.date.slice(0, 7) === m; });
+    var row = function (l, v, cls) { return '<div class="mrow" style="padding:10px 0;border-top:1px solid var(--line)"><span>' + l + '</span><b class="num ' + (cls || "") + '">' + v + "</b></div>"; };
+    openSheet(shead(monthName(m) + " report") +
+      (a.n ? '<div class="duo"><div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="label">Money in</div><div class="v num pos" style="font-family:var(--f-display);font-size:20px;font-weight:600">' + money(a.inc, true) + '</div></div>' +
+        '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="label">Spent</div><div class="v num neg" style="font-family:var(--f-display);font-size:20px;font-weight:600">' + money(-a.out) + "</div></div></div>" +
+        '<div style="font-family:var(--f-display);font-size:22px;font-weight:700" class="' + (saved >= 0 ? "pos" : "neg") + '">' + (saved >= 0 ? "You saved " + money(saved) : "You spent " + money(-saved) + " more than came in") + "</div>" +
+        (cmp ? '<p style="margin:0;color:var(--muted)">' + esc(cmp) + "</p>" : "") +
+        "<div>" + row("Entries logged", a.n) +
+        top.map(function (c, k) { return row((k === 0 ? "Top spending: " : (k + 1) + ". ") + esc(c), money(a.cats[c])); }).join("") +
+        (a.big ? row("Biggest purchase", esc(a.big.note || a.big.cat) + " · " + money(a.big.amount)) : "") +
+        (bl.length ? row("Budgets kept", within.length + " of " + bl.length, within.length === bl.length ? "pos" : "warn") : "") +
+        (bills.length ? row("Bills paid", bills.length + " · " + money(bills.reduce(function (s2, t) { return s2 + t.amount; }, 0))) : "") + "</div>"
+      : '<p style="margin:0;color:var(--muted)">Nothing was logged in ' + esc(monthName(m)) + ".</p>") +
+      '<div class="row"><button class="btn alt" data-act="report-nav" data-m="' + shiftMonth(m, -1) + '">‹ ' + esc(monthName(shiftMonth(m, -1), true)) + "</button>" +
+      (m < monthKey(new Date()) ? '<button class="btn alt" data-act="report-nav" data-m="' + shiftMonth(m, 1) + '">' + esc(monthName(shiftMonth(m, 1), true)) + " ›</button>" : "") + "</div>", { kind: "report", m: m });
+  }
+
+  // ---------- splits & who owes what ----------
+  function splitForm(t) {
+    openSheet(shead("Split with friends") +
+      '<p style="margin:0;color:var(--muted)">' + esc(t.note || t.cat) + " · " + money(t.amount) + "</p>" +
+      '<label class="field"><span>Who did you split it with?</span><input class="input" id="f-people" placeholder="Names, separated by commas, e.g. Sam, Alex" autocomplete="off"></label>' +
+      '<label class="field"><span>Each person owes you (' + esc(state.currency) + ')</span><input class="input big num" id="f-each" inputmode="decimal" placeholder="0.00"></label>' +
+      '<p class="hint" style="text-align:left" id="f-splithint">Split equally between you and them. Change the amount if it wasn’t equal.</p>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-split" data-id="' + esc(t.id) + '">Save split</button>', { kind: "split", id: t.id, amount: t.amount });
+  }
+  function owedByPerson() {
+    var m = {};
+    state.ious.forEach(function (o) {
+      if (o.settled) return;
+      var k = o.person.trim(), key = k.toLowerCase();
+      if (!m[key]) m[key] = { person: k, net: 0, n: 0 };
+      m[key].net += o.dir === "me" ? -o.amount : o.amount; m[key].n++;
+    });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return Math.abs(b.net) - Math.abs(a.net); });
+  }
+  function iouForm() {
+    openSheet(shead("Add who owes what") +
+      '<div class="seg" id="f-dir"><button type="button" data-v="them" aria-pressed="true">They owe me</button><button type="button" data-v="me" aria-pressed="false">I owe them</button></div>' +
+      '<label class="field"><span>Name</span><input class="input" id="f-name" maxlength="30" placeholder="e.g. Sam" autocomplete="off"></label>' +
+      '<label class="field"><span>Amount (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00"></label>' +
+      '<label class="field"><span>What for? (optional)</span><input class="input" id="f-note" maxlength="60" placeholder="e.g. Concert tickets"></label>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-iou">Save</button>', { kind: "iouform", dir: "them" });
+  }
+  function personSheet(name) {
+    var key = name.toLowerCase(), items = state.ious.filter(function (o) { return !o.settled && o.person.trim().toLowerCase() === key; });
+    if (!items.length) { closeSheet(); return; }
+    var net = items.reduce(function (s2, o) { return s2 + (o.dir === "me" ? -o.amount : o.amount); }, 0);
+    openSheet(shead(name) +
+      '<div style="font-family:var(--f-display);font-size:24px;font-weight:700" class="' + (net >= 0 ? "pos" : "neg") + '">' + (net >= 0 ? esc(name) + " owes you " + money(net) : "You owe " + esc(name) + " " + money(-net)) + "</div>" +
+      '<div class="blist">' + items.map(function (o) {
+        return '<div class="mrow" style="align-items:center"><span style="color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis">' + esc(o.note || (o.dir === "me" ? "You owe" : "Owes you")) + ' <span style="color:var(--muted);font-size:12px">' + esc(shortDate(o.date)) + "</span></span>" +
+          '<span style="display:flex;gap:8px;align-items:center"><b class="num ' + (o.dir === "me" ? "neg" : "pos") + '">' + money(o.amount) + '</b><button class="btn alt sm" data-act="settle" data-id="' + esc(o.id) + '">Paid</button></span></div>';
+      }).join("") + "</div>" +
+      '<button class="btn" data-act="settle-all" data-p="' + esc(name) + '">Mark all as paid</button>' +
+      '<p class="hint">Marking as paid logs the money in Money: money in when they pay you, spending when you pay them.</p>', { kind: "person", p: name });
+  }
+  function settle(o) {
+    if (!o || o.settled) return;
+    var orig = o.txId ? byId(state.tx, o.txId) : null;
+    var t = o.dir === "me"
+      ? { id: uid(), type: "out", amount: o.amount, cat: "Other", note: "Paid back " + o.person + (o.note ? " · " + o.note : ""), date: ymd(new Date()), created: Date.now(), pay: "" }
+      : { id: uid(), type: "in", amount: o.amount, cat: "Paid back", note: o.person + " paid you back" + (o.note ? " · " + o.note : ""), date: ymd(new Date()), created: Date.now(), pay: "" };
+    if (orig && o.dir !== "me") { t.forCat = orig.cat; t.acct = orig.acct || ""; }
+    if (state.accounts.length === 1 && !t.acct) t.acct = state.accounts[0].id;
+    if (o.sample) t.sample = true;
+    state.tx.push(t); o.settled = true; o.settledTx = t.id;
+  }
+
+  // ---------- custom categories ----------
+  function catsSheet() {
+    var grp = function (type, label) {
+      return '<div class="field"><span>' + label + '</span><div class="blist">' + state.cats[type].map(function (c, i) {
+        return '<button class="item" data-act="edit-cat" data-type="' + type + '" data-i="' + i + '"><div class="mrow" style="align-items:center"><b><span class="dot" style="display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:10px;vertical-align:-1px;background:' + esc(c.color) + '"></span>' + esc(c.name) + '</b><span>Edit ›</span></div></button>';
+      }).join("") + '</div><button class="btn alt sm" data-act="add-cat" data-type="' + type + '" style="margin-top:6px">+ Add a ' + (type === "out" ? "spending" : "money-in") + " category</button></div>";
+    };
+    openSheet(shead("Categories") + grp("out", "Spending") + grp("in", "Money in"), { kind: "cats" });
+  }
+  function catForm(type, i) {
+    var isNew = i == null, c = isNew ? { name: "", color: CAT_SWATCH[state.cats[type].length % CAT_SWATCH.length] } : state.cats[type][i];
+    openSheet(shead(isNew ? "New category" : "Edit category") +
+      '<label class="field"><span>Name</span><input class="input" id="f-name" maxlength="20" placeholder="e.g. Pets" value="' + esc(c.name) + '"></label>' +
+      '<div class="field"><span>Colour</span><div class="swatches" id="f-catcolor">' + CAT_SWATCH.map(function (k) { return '<button type="button" data-v="' + k + '" aria-label="Colour ' + k + '" aria-pressed="' + (c.color === k) + '" style="background:' + k + '"></button>'; }).join("") + "</div></div>" +
+      (isNew ? "" : '<p class="hint" style="text-align:left">Renaming updates your past entries, bills and budgets too.</p>') +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-cat">' + (isNew ? "Add category" : "Save changes") + "</button>" +
+      (isNew || state.cats[type].length < 2 ? "" : '<button class="btn danger" data-act="del-cat">Delete category</button><p class="hint">Past entries keep this name, shown in grey.</p>'),
+      { kind: "catform", type: type, i: isNew ? null : i, color: c.color });
+  }
+
+  // ---------- calendar (bills) ----------
+  function icsText() {
+    var e = function (v) { return String(v).replace(/\\/g, "\\\\").replace(/[,;]/g, function (m) { return "\\" + m; }).replace(/\n/g, "\\n"); };
+    var stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Wallet//Bills//EN", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Bills"];
+    state.bills.forEach(function (b) {
+      var next = billNext(b).replace(/-/g, "");
+      L.push("BEGIN:VEVENT", "UID:bill-" + b.id + "@wallet", "DTSTAMP:" + stamp, "DTSTART;VALUE=DATE:" + next,
+        "RRULE:FREQ=MONTHLY;BYMONTHDAY=" + (b.day > 28 ? "-1" : b.day),
+        "SUMMARY:" + e(b.name + " due · " + money(b.amount)), "DESCRIPTION:" + e("Logged automatically in your Wallet app.") + (b.day > 28 ? e(" Shown on the last day of each month.") : ""),
+        "TRANSP:TRANSPARENT", "BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + e(b.name + " is due tomorrow (" + money(b.amount) + ")"), "TRIGGER:-PT15H", "END:VALARM", "END:VEVENT");
+    });
+    L.push("END:VCALENDAR");
+    return L.join("\r\n") + "\r\n";
+  }
+
   function renderPlan() {
-    var cur = monthKey(new Date()), spent = spentByCat(cur), cats = OUT_CATS.filter(function (c) { return state.budgets[c] > 0; });
+    var cur = monthKey(new Date()), spent = spentByCat(cur), cats = catNames("out").filter(function (c) { return state.budgets[c] > 0; });
     var h = '<div class="stackv">';
     // budgets
     h += '<div class="panel"><div class="phead"><h3>Budgets · ' + esc(monthName(cur, true)) + '</h3><button class="link" data-act="budgets">' + (cats.length ? "Edit" : "Set up") + "</button></div>";
@@ -593,8 +792,17 @@ button { cursor: pointer; }
         var when = dd <= 0 ? "due today" : dd === 1 ? "due tomorrow" : "in " + dd + " days";
         return '<button class="item" data-act="edit-bill" data-id="' + esc(b.id) + '"><div class="mrow"><b>' + esc(b.name) + '</b><b class="num">' + money(b.amount) + '</b></div><div class="mrow" style="font-size:12px"><span>Next: ' + esc(shortDate(nd)) + " · " + when + "</span><span>" + esc(b.cat) + "</span></div></button>";
       }).join("") + "</div>";
-      h += '<div class="sub" style="margin-top:12px">' + money(mTot) + " a month in total</div>";
+      h += '<div class="sub" style="margin-top:12px">' + money(mTot) + " a month in total</div>" +
+        '<button class="btn alt sm" data-act="calendar" style="margin-top:12px;width:100%">📅 Add bill reminders to Calendar</button>';
     }
+    h += "</div>";
+    // who owes what
+    var people = owedByPerson();
+    h += '<div class="panel"><div class="phead"><h3>Who owes what</h3><button class="link" data-act="add-iou">Add</button></div>';
+    if (!people.length) h += '<p class="sub" style="margin:0">Split a bill from any entry in Money (tap it, then “Split with friends”), or add money someone owes you here.</p>';
+    else h += '<div class="blist">' + people.map(function (x) {
+      return '<button class="item" data-act="person" data-p="' + esc(x.person) + '"><div class="mrow"><b>' + esc(x.person) + '</b><b class="num ' + (x.net >= 0 ? "pos" : "neg") + '">' + money(Math.abs(x.net)) + '</b></div><div class="mrow" style="font-size:12px"><span>' + (x.net >= 0 ? "Owes you" : "You owe") + "</span><span>" + x.n + " item" + (x.n === 1 ? "" : "s") + "</span></div></button>";
+    }).join("") + "</div>";
     h += "</div>";
     // goals
     h += '<div class="panel"><div class="phead"><h3>Savings goals</h3><button class="link" data-act="add-goal">Add</button></div>';
@@ -604,7 +812,7 @@ button { cursor: pointer; }
       return '<button class="item" data-act="open-goal" data-id="' + esc(g.id) + '"><div class="mrow"><b>' + esc(g.name) + '</b><span class="num">' + Math.round(pct * 100) + '%</span></div><div class="meter goal"><span style="width:' + (pct * 100).toFixed(1) + '%"></span></div><div class="mrow" style="font-size:12px;margin-top:4px"><span class="num">' + money(g.saved) + " of " + money(g.target) + "</span><span>" + (g.saved >= g.target ? "Reached 🎉" : money(g.target - g.saved) + " to go") + "</span></div></button>";
     }).join("") + "</div>";
     h += "</div>";
-    if (!cats.length && !bills.length && !state.goals.length)
+    if (!cats.length && !bills.length && !state.goals.length && !people.length)
       h += '<button class="btn alt" data-act="sample">Show examples</button>';
     return h + "</div>";
   }
@@ -679,6 +887,7 @@ button { cursor: pointer; }
       '<div id="scanBox" hidden><div class="scan"><video id="scanVideo" playsinline muted autoplay></video></div>' +
       '<div class="row" style="margin-top:10px"><button type="button" class="btn alt sm" data-act="scan-photo">Use a photo instead</button><button type="button" class="btn alt sm" data-act="scan-stop">Stop</button></div>' +
       '<p class="hint" style="margin-top:8px">Hold the barcode inside the box.</p></div>' +
+      (state.accounts.length ? '<div class="field" id="f-acctwrap"><span>Money comes out of (optional)</span>' + chipGroup("f-acct", [["", "Not set"]].concat(state.accounts.map(function (a) { return [a.id, a.name]; })), c.acct || "") + "</div>" : "") +
       '<label class="field" id="f-balwrap"><span>Gift card balance (optional)</span><input class="input num" id="f-balance" inputmode="decimal" placeholder="e.g. 25.00" value="' + (c.balance != null ? amtStr(c.balance) : "") + '"></label>' +
       '<div class="field"><span>Colour</span><div class="swatches" id="f-color">' + COLORS.map(function (k) { return '<button type="button" data-v="' + k + '" aria-label="' + k + '" aria-pressed="' + (c.color === k) + '" style="background:' + SWATCH[k] + '"></button>'; }).join("") + "</div></div>" +
       '<div class="field" id="f-photowrap"><span>Photos (optional)</span><div class="photos"><button type="button" class="photo" id="ph-front" data-act="photo" data-side="front"></button><button type="button" class="photo" id="ph-back" data-act="photo" data-side="back"></button></div></div>' +
@@ -694,12 +903,13 @@ button { cursor: pointer; }
     n.setAttribute("inputmode", bank ? "numeric" : "text"); n.maxLength = bank ? 4 : 200;
     $("f-name").placeholder = bank ? "e.g. Visa debit" : "e.g. Target Circle";
     $("scanBtn").hidden = bank; $("f-balwrap").hidden = bank; $("f-photowrap").hidden = bank;
+    if ($("f-acctwrap")) $("f-acctwrap").hidden = !bank;
     if (bank) stopScan();
   }
   function drawPhotos() {
-    ["front", "back"].forEach(function (s) {
+    ["front", "back", "receipt"].forEach(function (s) {
       var el = $("ph-" + s); if (!el) return;
-      el.innerHTML = sheetCtx[s] ? '<img src="' + sheetCtx[s] + '" alt=""><span class="x" data-act="photo-del" data-side="' + s + '">✕</span>' : (s === "front" ? "+ Front" : "+ Back");
+      el.innerHTML = sheetCtx[s] ? '<img src="' + sheetCtx[s] + '" alt=""><span class="x" data-act="photo-del" data-side="' + s + '">✕</span>' : (s === "front" ? "+ Front" : s === "back" ? "+ Back" : "+ Add a photo of the receipt");
     });
   }
   function shrinkImage(file) {
@@ -717,9 +927,9 @@ button { cursor: pointer; }
   }
   var photoSide = null;
   $("photoFile").addEventListener("change", function (e) {
-    var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f || !sheetCtx || sheetCtx.kind !== "cardform") return;
-    var side = photoSide;
-    shrinkImage(f).then(function (d) { if (sheetCtx && sheetCtx.kind === "cardform") { sheetCtx[side] = d; drawPhotos(); } }, function () { toast("Couldn’t read that photo"); });
+    var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f || !sheetCtx || sheetCtx[photoSide] === undefined) return;
+    var side = photoSide, kind = sheetCtx.kind;
+    shrinkImage(f).then(function (d) { if (sheetCtx && sheetCtx.kind === kind) { sheetCtx[side] = d; drawPhotos(); } }, function () { toast("Couldn’t read that photo"); });
   });
 
   // ---------- barcode scanning ----------
@@ -771,24 +981,39 @@ button { cursor: pointer; }
 
   // ---------- entries ----------
   function txForm(t) {
-    var isNew = !t || !t.id; t = Object.assign({ type: "out", amount: 0, cat: "Food", note: "", date: ymd(new Date()), pay: "" }, t || {});
-    openSheet(shead(isNew ? "Add an entry" : "Edit entry") +
-      '<div class="seg" id="f-type"><button type="button" data-v="out" aria-pressed="' + (t.type === "out") + '">Spent</button><button type="button" data-v="in" aria-pressed="' + (t.type === "in") + '">Money in</button></div>' +
+    var isNew = !t || !t.id; t = Object.assign({ type: "out", amount: 0, cat: "Food", note: "", date: ymd(new Date()), pay: "", acct: "", to: "" }, t || {});
+    if (isNew && !t.acct && state.accounts.length === 1) t.acct = state.accounts[0].id;
+    var acctOpts = [["", "None"]].concat(state.accounts.map(function (a) { return [a.id, a.name]; }));
+    var canMove = state.accounts.length >= 2 || t.type === "move";
+    openSheet(shead(isNew ? "Add an entry" : t.type === "move" ? "Edit transfer" : "Edit entry") +
+      '<div class="seg" id="f-type"><button type="button" data-v="out" aria-pressed="' + (t.type === "out") + '">Spent</button><button type="button" data-v="in" aria-pressed="' + (t.type === "in") + '">Money in</button>' +
+      (canMove ? '<button type="button" data-v="move" aria-pressed="' + (t.type === "move") + '">Transfer</button>' : "") + "</div>" +
       '<label class="field"><span>Amount (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + amtStr(t.amount) + '"></label>' +
-      '<div class="field"><span>Category</span><div class="chips" id="f-cat"></div></div>' +
-      '<div class="field"><span>Paid with</span>' + chipGroup("f-pay", payOpts(), t.pay || "") + "</div>" +
+      '<div class="field" id="w-cat"><span>Category</span><div class="chips" id="f-cat"></div></div>' +
+      '<div class="field" id="w-pay"><span>Paid with</span>' + chipGroup("f-pay", payOpts(), t.pay || "") + "</div>" +
+      (state.accounts.length ? '<div class="field" id="w-acct"><span id="l-acct">Account</span>' + chipGroup("f-acct", acctOpts, t.acct || "") + "</div>" +
+        '<div class="field" id="w-to"><span>To</span>' + chipGroup("f-to", acctOpts.slice(1), t.to || "") + "</div>" : "") +
       '<label class="field"><span>What was it? (optional)</span><input class="input" id="f-note" maxlength="60" placeholder="e.g. Lunch with Sam" value="' + esc(t.note) + '"></label>' +
       '<label class="field"><span>Date</span><input class="input" id="f-date" type="date" value="' + esc(t.date) + '"></label>' +
+      '<div class="field" id="w-receipt"><span>Receipt photo (optional)</span><button type="button" class="photo receipt" id="ph-receipt" data-act="photo" data-side="receipt"></button></div>' +
       '<p class="err" id="f-err"></p><button class="btn" data-act="save-tx">' + (isNew ? "Add entry" : "Save changes") + "</button>" +
-      (!isNew && t.type === "out" ? '<button class="btn alt" data-act="refund" data-id="' + esc(t.id) + '">↩ Refund this' + (refunded(t.id) ? " (" + money(refunded(t.id)) + " refunded so far)" : "") + "</button>" : "") +
+      (!isNew && t.type === "out" ? '<button class="btn alt" data-act="refund" data-id="' + esc(t.id) + '">↩ Refund this' + (refunded(t.id) ? " (" + money(refunded(t.id)) + " refunded so far)" : "") + "</button>" +
+        '<button class="btn alt" data-act="split" data-id="' + esc(t.id) + '">👥 Split with friends' + (splitOf(t.id).length ? " (split with " + splitOf(t.id).length + ")" : "") + "</button>" : "") +
       (isNew ? "" : '<button class="btn danger" data-act="del-tx" data-id="' + esc(t.id) + '">Delete entry</button>'),
-      { kind: "txform", id: isNew ? null : t.id, type: t.type, cat: t.cat, pay: t.pay || "", refundOf: t.refundOf || null, forCat: t.forCat || null });
+      { kind: "txform", id: isNew ? null : t.id, type: t.type, cat: t.cat, pay: t.pay || "", acct: t.acct || "", to: t.to || "", receipt: t.receipt || "", refundOf: t.refundOf || null, forCat: t.forCat || null });
     if (t.refundOf && isNew) $("f-err").insertAdjacentHTML("beforebegin", '<p class="hint" style="text-align:left">This adds the money back as a refund. Change the amount for a part refund. The original purchase stays in your history.</p>');
-    drawCats();
+    typeChanged(); drawPhotos();
     if (isNew) setTimeout(function () { var a = $("f-amount"); if (a) a.focus(); }, 300);
   }
+  function typeChanged() {
+    var move = sheetCtx.type === "move";
+    $("w-cat").hidden = move; $("w-pay").hidden = move; $("w-receipt").hidden = move;
+    if ($("w-to")) $("w-to").hidden = !move;
+    if ($("l-acct")) $("l-acct").textContent = move ? "From" : "Account";
+    if (!move) drawCats();
+  }
   function drawCats() {
-    var cats = sheetCtx.type === "in" ? IN_CATS : OUT_CATS;
+    var cats = catNames(sheetCtx.type === "in" ? "in" : "out");
     if (cats.indexOf(sheetCtx.cat) < 0) sheetCtx.cat = cats[0];
     $("f-cat").outerHTML = chipGroup("f-cat", cats, sheetCtx.cat);
   }
@@ -796,7 +1021,7 @@ button { cursor: pointer; }
   // ---------- plan ----------
   function budgetForm() {
     openSheet(shead("Monthly budgets") + '<p class="sub" style="margin:0">Set how much you want to spend in each category per month. Leave a box empty for no limit.</p>' +
-      OUT_CATS.map(function (c) {
+      catNames("out").map(function (c) {
         return '<label class="field"><span>' + esc(c) + '</span><input class="input num" data-cat="' + esc(c) + '" inputmode="decimal" placeholder="No limit" value="' + amtStr(state.budgets[c] || 0) + '"></label>';
       }).join("") + '<button class="btn" data-act="save-budgets">Save budgets</button>', { kind: "budgets" });
   }
@@ -806,7 +1031,7 @@ button { cursor: pointer; }
       '<label class="field"><span>Name</span><input class="input" id="f-name" maxlength="40" placeholder="e.g. Rent, Netflix, Phone plan" value="' + esc(b.name) + '"></label>' +
       '<label class="field"><span>Amount each month (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + amtStr(b.amount) + '"></label>' +
       '<label class="field"><span>Day of the month it’s due</span><input class="input num" id="f-day" type="number" inputmode="numeric" min="1" max="31" value="' + b.day + '"></label>' +
-      '<div class="field"><span>Category</span>' + chipGroup("f-cat", OUT_CATS, b.cat) + "</div>" +
+      '<div class="field"><span>Category</span>' + chipGroup("f-cat", catNames("out"), b.cat) + "</div>" +
       '<div class="field"><span>Paid with</span>' + chipGroup("f-pay", payOpts(), b.pay || "") + "</div>" +
       '<p class="hint" style="text-align:left">It’s added to Money automatically on the due day each month' + (isNew ? ", starting with the next due date." : ".") + "</p>" +
       '<p class="err" id="f-err"></p><button class="btn" data-act="save-bill">' + (isNew ? "Add bill" : "Save changes") + "</button>" +
@@ -835,6 +1060,7 @@ button { cursor: pointer; }
     openSheet(shead("Add to your plan") +
       '<button class="btn alt" data-act="add-bill">A bill or subscription</button>' +
       '<button class="btn alt" data-act="add-goal">A savings goal</button>' +
+      '<button class="btn alt" data-act="add-iou">Money someone owes</button>' +
       '<button class="btn alt" data-act="budgets">Monthly budgets</button>', { kind: "planadd" });
   }
 
@@ -867,6 +1093,16 @@ button { cursor: pointer; }
       { id: uid(), sample: true, name: "Phone plan", amount: 6000, cat: "Bills", pay: visa ? visa.id : "", day: 15, start: cur, posted: cur },
       { id: uid(), sample: true, name: "Streaming", amount: 1549, cat: "Fun", pay: visa ? visa.id : "", day: 3, start: cur, posted: cur }
     ];
+    if (!state.accounts.length) {
+      var bankA = { id: uid(), sample: true, name: "Bank account", kind: "Bank", start: 52000 }, cashA = { id: uid(), sample: true, name: "Cash", kind: "Cash", start: 6000 };
+      state.accounts = [bankA, cashA];
+      if (visa) visa.acct = bankA.id;
+      state.tx.forEach(function (t) { if (!t.sample) return; if (t.pay === "cash") t.acct = cashA.id; else if (t.type === "in" || (visa && t.pay === visa.id)) t.acct = bankA.id; });
+    }
+    if (!state.ious.length) {
+      var movie = state.tx.filter(function (t) { return t.sample && t.note === "Movie night"; })[0];
+      state.ious = [{ id: uid(), sample: true, person: "Sam", amount: 900, dir: "them", note: "Movie night", date: movie ? movie.date : ymd(new Date()), txId: movie ? movie.id : null, settled: false }];
+    }
     if (!state.goals.length) state.goals = [
       { id: uid(), sample: true, name: "New phone", target: 100000, saved: 40000 },
       { id: uid(), sample: true, name: "Summer trip", target: 150000, saved: 22500 }
@@ -875,23 +1111,27 @@ button { cursor: pointer; }
   }
 
   // ---------- backup & export ----------
-  function shareOrDownload(file, okMsg) {
+  function shareOrDownload(file, okMsg, done) {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: file.name }).then(function () { toast(okMsg); }, function () {});
+      navigator.share({ files: [file], title: file.name }).then(function () { if (done) done(); toast(okMsg); }, function () {});
       return;
     }
+    if (done) done();
     var a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name;
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     toast(okMsg);
   }
   function backup() {
-    shareOrDownload(new File([JSON.stringify(Object.assign({ app: "wallet", version: 2 }, state))], "wallet-backup-" + ymd(new Date()) + ".json", { type: "application/json" }), "Backup saved");
+    shareOrDownload(new File([JSON.stringify(Object.assign({ app: "wallet", version: 2 }, state))], "wallet-backup-" + ymd(new Date()) + ".json", { type: "application/json" }), "Backup saved", function () {
+      state.lastBackup = Date.now(); delete state.snoozeBackup; save(true); if (sheetCtx && sheetCtx.kind === "menu") showMenu(); else render();
+    });
   }
   function exportCsv() {
     var q = function (v) { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-    var rows = [["Date", "Type", "Category", "Amount", "Currency", "Paid with", "Note"]];
+    var rows = [["Date", "Type", "Category", "Amount", "Currency", "Paid with", "Note", "Account"]];
     state.tx.slice().sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }).forEach(function (t) {
-      rows.push([t.date, t.type === "in" ? "Money in" : "Spent", t.cat, ((t.type === "in" ? 1 : -1) * t.amount / 100).toFixed(2), state.currency, payName(t.pay), t.note]);
+      if (t.type === "move") { rows.push([t.date, "Transfer", acctName(t.acct) + " → " + acctName(t.to), (t.amount / 100).toFixed(2), state.currency, "", t.note]); return; }
+      rows.push([t.date, t.type === "in" ? "Money in" : "Spent", t.cat, ((t.type === "in" ? 1 : -1) * t.amount / 100).toFixed(2), state.currency, payName(t.pay), t.note, acctName(t.acct)]);
     });
     var csv = "﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n");
     shareOrDownload(new File([csv], "wallet-entries-" + ymd(new Date()) + ".csv", { type: "text/csv" }), "Spreadsheet exported");
@@ -903,7 +1143,9 @@ button { cursor: pointer; }
       (lockCfg ? '<button class="btn danger sm" data-act="lock-off">Turn off</button>' : '<button class="btn sm" data-act="lock-setup">Turn on</button>') + "</div>" +
       (lockCfg ? '<button class="link" data-act="lock-now" style="margin-top:8px">Lock now</button>' : "") + "</div>" +
       '<button class="btn alt" data-act="undo"' + (undoStack.length ? "" : " disabled style=\"opacity:.5\"") + '>↶ Undo last change' + (undoStack.length ? " (" + undoStack.length + " available)" : "") + "</button>" +
-      '<div class="field"><span>Your data</span><p style="margin:0;color:var(--muted)">Saved on this phone only. Back up now and then, so you can get it back on a new phone or if you delete the app.</p></div>' +
+      '<div class="field"><span>When the app opens</span>' + chipGroup("f-open", [["cards", "Cards"], ["money", "Money"], ["plan", "Plan"], ["add", "Add an entry"]], state.openTo || "cards") + "</div>" +
+      '<button class="btn alt" data-act="cats">Categories</button>' +
+      '<div class="field"><span>Your data</span><p style="margin:0;color:var(--muted)">Saved on this phone only. Back up now and then, so you can get it back on a new phone or if you delete the app.' + (state.lastBackup ? " Last backup: " + esc(new Date(state.lastBackup).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })) + "." : " You haven’t backed up yet.") + '</p></div>' +
       '<p style="margin:0;font-size:14px" class="num">' + state.cards.length + " cards · " + state.tx.length + " entries · " + state.bills.length + " bills · " + state.goals.length + " goals</p>" +
       '<button class="btn" data-act="backup">Back up (save to Files)</button>' +
       '<button class="btn alt" data-act="restore">Restore from a backup</button>' +
@@ -1003,9 +1245,19 @@ button { cursor: pointer; }
     if (seg && seg.parentElement.id) {
       var gid = seg.parentElement.id;
       seg.parentElement.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === seg)); });
-      if (gid === "f-type") { sheetCtx.type = seg.dataset.v; drawCats(); }
+      if (gid === "f-type") { sheetCtx.type = seg.dataset.v; typeChanged(); }
+      if (gid === "f-acct") sheetCtx.acct = seg.dataset.v;
+      if (gid === "f-to") sheetCtx.to = seg.dataset.v;
+      if (gid === "f-kind") sheetCtx.kindSel = seg.dataset.v;
+      if (gid === "f-dir") sheetCtx.dir = seg.dataset.v;
+      if (gid === "f-open") { state.openTo = seg.dataset.v; save(true); toast("Saved"); }
+      if (gid === "f-catcolor") sheetCtx.color = seg.dataset.v;
       if (gid === "f-cat") sheetCtx.cat = seg.dataset.v;
-      if (gid === "f-pay") sheetCtx.pay = seg.dataset.v;
+      if (gid === "f-pay") {
+        sheetCtx.pay = seg.dataset.v;
+        var lc = byId(state.cards, seg.dataset.v);
+        if (lc && lc.acct && $("f-acct")) { sheetCtx.acct = lc.acct; $("f-acct").querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.v === lc.acct)); }); }
+      }
       if (gid === "f-format") formatChanged(seg.dataset.v);
       return;
     }
@@ -1017,6 +1269,7 @@ button { cursor: pointer; }
       case "clear-sample":
         var nf = function (x) { return !x.sample; };
         state.cards = state.cards.filter(nf); state.tx = state.tx.filter(nf); state.bills = state.bills.filter(nf); state.goals = state.goals.filter(nf);
+        state.accounts = state.accounts.filter(nf); state.ious = state.ious.filter(nf);
         if (state.sampleBudgets) { state.budgets = {}; delete state.sampleBudgets; }
         commit(); toast("Examples removed"); break;
       case "close": closeSheet(); break;
@@ -1031,7 +1284,15 @@ button { cursor: pointer; }
       case "scan": startScan(); break;
       case "scan-stop": stopScan(); break;
       case "scan-photo": stopScan(); $("scanFile").click(); break;
-      case "photo": photoSide = el.dataset.side; $("photoFile").click(); break;
+      case "photo":
+        if (el.dataset.side === "receipt" && sheetCtx && sheetCtx.receipt) {
+          var big = $("rcptBig");
+          if (big) { big.remove(); break; }
+          el.insertAdjacentHTML("afterend", '<div id="rcptBig"><img class="bigphoto" src="' + sheetCtx.receipt + '" alt="Receipt"><button type="button" class="btn alt sm" data-act="photo-replace" data-side="receipt" style="margin-top:8px;width:100%">Replace photo</button></div>');
+          break;
+        }
+        photoSide = el.dataset.side; $("photoFile").click(); break;
+      case "photo-replace": photoSide = el.dataset.side; var rb = $("rcptBig"); if (rb) rb.remove(); $("photoFile").click(); break;
       case "del-card": case "del-tx": case "del-bill": case "del-goal":
         if (!armDelete(el)) return;
         if (act === "del-card") state.cards = state.cards.filter(function (c) { return c.id !== id; });
@@ -1047,7 +1308,7 @@ button { cursor: pointer; }
         if (format === "ean13" && !/^\d{12,13}$/.test(number.replace(/\s+/g, ""))) { $("f-err").textContent = "EAN-13 numbers are 13 digits. Check the number or pick “Barcode”."; return; }
         var balRaw = format === "bank" ? "" : $("f-balance").value.trim();
         var card = { name: name, number: number, format: format, color: pressed("f-color") || "cobalt", note: $("f-note").value.trim(),
-          balance: balRaw ? parseAmt(balRaw) : null, front: format === "bank" ? "" : sheetCtx.front, back: format === "bank" ? "" : sheetCtx.back };
+          balance: balRaw ? parseAmt(balRaw) : null, acct: format === "bank" && $("f-acct") ? (pressed("f-acct") || "") : "", front: format === "bank" ? "" : sheetCtx.front, back: format === "bank" ? "" : sheetCtx.back };
         if (sheetCtx.id) { i = state.cards.findIndex(function (c) { return c.id === sheetCtx.id; }); if (i >= 0) state.cards[i] = Object.assign({}, state.cards[i], card, { sample: false }); }
         else { card.id = uid(); state.cards.push(card); }
         var wasEdit = !!sheetCtx.id; closeSheet(); commit(); toast(wasEdit ? "Card saved" : "Card added"); break;
@@ -1055,11 +1316,16 @@ button { cursor: pointer; }
       case "save-tx":
         var amt = parseAmt($("f-amount").value), date = $("f-date").value || ymd(new Date());
         if (!(amt > 0)) { $("f-err").textContent = "Enter an amount above zero."; return; }
-        var t = { type: sheetCtx.type, amount: amt, cat: sheetCtx.cat, pay: sheetCtx.pay || "", note: $("f-note").value.trim(), date: date };
+        var t = { type: sheetCtx.type, amount: amt, cat: sheetCtx.cat, pay: sheetCtx.pay || "", note: $("f-note").value.trim(), date: date, acct: sheetCtx.acct || "", receipt: sheetCtx.receipt || "" };
+        if (t.type === "move") {
+          if (!t.acct || !sheetCtx.to) { $("f-err").textContent = "Pick the account the money comes from and the one it goes to."; return; }
+          if (t.acct === sheetCtx.to) { $("f-err").textContent = "Pick two different accounts."; return; }
+          t.to = sheetCtx.to; t.cat = "Transfer"; t.pay = ""; t.receipt = "";
+        } else t.to = "";
         if (sheetCtx.refundOf && t.type === "in") { t.refundOf = sheetCtx.refundOf; t.forCat = sheetCtx.forCat; }
         if (sheetCtx.id) { i = state.tx.findIndex(function (x) { return x.id === sheetCtx.id; }); if (i >= 0) state.tx[i] = Object.assign({}, state.tx[i], t, { sample: false }); }
         else { t.id = uid(); t.created = Date.now(); state.tx.push(t); }
-        var we = !!sheetCtx.id, wr = !!t.refundOf && !we; closeSheet(); ui.month = date.slice(0, 7); commit(); toast(we ? "Entry saved" : wr ? "Refund added" : "Entry added"); break;
+        var we = !!sheetCtx.id, wr = !!t.refundOf && !we; closeSheet(); ui.month = date.slice(0, 7); commit(); toast(we ? "Entry saved" : wr ? "Refund added" : t.type === "move" ? "Transfer added" : "Entry added"); break;
       case "refund":
         var o = byId(state.tx, id); if (!o) return;
         var leftToRefund = Math.max(0, o.amount - refunded(o.id));
@@ -1103,6 +1369,69 @@ button { cursor: pointer; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
       case "undo": undo(); break;
+      case "snooze-backup": state.snoozeBackup = Date.now() + 3 * 864e5; save(true); render(); break;
+      case "report": case "report-nav":
+        var rm = el.dataset.m; if (rm === shiftMonth(monthKey(new Date()), -1) || (state.reportSeen || "") < rm) { if (rm < monthKey(new Date()) && (state.reportSeen || "") < rm) { state.reportSeen = rm; save(true); render(); } }
+        reportSheet(rm); break;
+      case "add-acct": acctForm(); break;
+      case "edit-acct": acctForm(byId(state.accounts, id)); break;
+      case "save-acct":
+        var an = $("f-name").value.trim(), av = parseAmt($("f-amount").value) * (/^\s*-/.test($("f-amount").value) ? -1 : 1);
+        if (!an) { $("f-err").textContent = "Give the account a name."; return; }
+        if (sheetCtx.id) { var ea = byId(state.accounts, sheetCtx.id); if (ea) { ea.start = (ea.start || 0) + (av - acctBal(ea)); ea.name = an; ea.kind = sheetCtx.kindSel; delete ea.sample; } }
+        else state.accounts.push({ id: uid(), name: an, kind: sheetCtx.kindSel, start: av });
+        var ae = !!sheetCtx.id; closeSheet(); commit(); toast(ae ? "Account saved" : "Account added"); break;
+      case "del-acct":
+        if (!armDelete(el)) return;
+        state.accounts = state.accounts.filter(function (a) { return a.id !== id; }); closeSheet(); commit(); toast("Account deleted"); break;
+      case "split": closeSheet(); setTimeout(function () { splitForm(byId(state.tx, id)); }, 10); break;
+      case "save-split":
+        var names = $("f-people").value.split(/[,\n]+/).map(function (x) { return x.trim(); }).filter(Boolean), each = parseAmt($("f-each").value);
+        if (!names.length) { $("f-err").textContent = "Type at least one name."; return; }
+        if (!(each > 0)) { $("f-err").textContent = "Enter how much each person owes you."; return; }
+        var st = byId(state.tx, id);
+        names.forEach(function (nm) { state.ious.push({ id: uid(), person: nm, amount: each, dir: "them", note: st ? (st.note || st.cat) : "", date: st ? st.date : ymd(new Date()), txId: id, settled: false }); });
+        closeSheet(); commit(); toast("Split with " + names.length + (names.length === 1 ? " person" : " people")); break;
+      case "add-iou": iouForm(); break;
+      case "save-iou":
+        var inm = $("f-name").value.trim(), iam = parseAmt($("f-amount").value);
+        if (!inm) { $("f-err").textContent = "Type their name."; return; }
+        if (!(iam > 0)) { $("f-err").textContent = "Enter an amount above zero."; return; }
+        state.ious.push({ id: uid(), person: inm, amount: iam, dir: sheetCtx.dir || "them", note: $("f-note").value.trim(), date: ymd(new Date()), txId: null, settled: false });
+        closeSheet(); commit(); toast("Saved"); break;
+      case "person": personSheet(el.dataset.p); break;
+      case "settle":
+        var so = byId(state.ious, id), sp = so ? so.person : ""; settle(so); commit(); personSheet(sp); toast("Marked as paid"); break;
+      case "settle-all":
+        var pk = el.dataset.p.toLowerCase();
+        state.ious.forEach(function (o) { if (!o.settled && o.person.trim().toLowerCase() === pk) settle(o); });
+        closeSheet(); commit(); toast("All paid up with " + el.dataset.p); break;
+      case "cats": catsSheet(); break;
+      case "add-cat": catForm(el.dataset.type, null); break;
+      case "edit-cat": catForm(el.dataset.type, +el.dataset.i); break;
+      case "save-cat":
+        var cn = $("f-name").value.trim(), ct = sheetCtx.type, list = state.cats[ct];
+        if (!cn) { $("f-err").textContent = "Name the category."; return; }
+        if (list.some(function (c, j) { return c.name.toLowerCase() === cn.toLowerCase() && j !== sheetCtx.i; })) { $("f-err").textContent = "You already have a category called that."; return; }
+        if (sheetCtx.i == null) list.push({ name: cn, color: sheetCtx.color });
+        else {
+          var oldName = list[sheetCtx.i].name; list[sheetCtx.i] = { name: cn, color: sheetCtx.color };
+          if (oldName !== cn) {
+            state.tx.forEach(function (t) { if ((ct === "out" ? t.type === "out" : t.type === "in") && t.cat === oldName) t.cat = cn; if (ct === "out" && t.forCat === oldName) t.forCat = cn; });
+            if (ct === "out") {
+              state.bills.forEach(function (b) { if (b.cat === oldName) b.cat = cn; });
+              if (state.budgets[oldName] != null) { state.budgets[cn] = state.budgets[oldName]; delete state.budgets[oldName]; }
+            }
+          }
+        }
+        commit(); catsSheet(); toast("Category saved"); break;
+      case "del-cat":
+        if (!armDelete(el)) return;
+        var dn = state.cats[sheetCtx.type][sheetCtx.i].name; state.cats[sheetCtx.type].splice(sheetCtx.i, 1);
+        if (sheetCtx.type === "out") delete state.budgets[dn];
+        commit(); catsSheet(); toast("Category deleted"); break;
+      case "calendar":
+        shareOrDownload(new File([icsText()], "bills.ics", { type: "text/calendar" }), "Calendar file ready"); break;
       case "backup": backup(); break;
       case "restore": $("restoreFile").click(); break;
       case "export": exportCsv(); break;
@@ -1184,7 +1513,12 @@ button { cursor: pointer; }
   Promise.all([load(), loadLock()]).then(function () {
     if (lockCfg) { locked = true; showLock(); }
     postBills();
+    var want = (location.search.match(/[?&]add=(entry|card)/) || [])[1] || (state.openTo === "add" ? "entry" : "");
+    if (state.openTo && state.openTo !== "add") ui.tab = state.openTo;
+    if (want === "entry") ui.tab = "money";
+    if (want === "card") ui.tab = "cards";
     render();
+    if (want) setTimeout(function () { want === "card" ? cardForm() : txForm(); }, 50);
     $("app").hidden = false; $("tabbar").hidden = false;
     save(true); // moves old data into the new storage
   });
