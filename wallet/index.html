@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wallet</title>
+<meta name="description" content="Your loyalty cards and spending, on your phone.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Wallet">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDEFF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D0F14" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-column phone app — sticky title bar, scrolling view, fixed bottom tab bar, bottom sheets for forms. */
+:root {
+  --bg: #EDEFF3;
+  --surface: #FFFFFF;
+  --surface-2: #F5F6F9;
+  --ink: #141820;
+  --muted: #646B7A;
+  --line: #DCE0E8;
+  --accent: #2F5BEA;
+  --accent-ink: #FFFFFF;
+  --pos: #188A5E;
+  --neg: #CC3F35;
+  --shadow: 0 1px 2px rgba(20,24,32,.06), 0 8px 24px rgba(20,24,32,.08);
+  --f-display: "Sora", "Inter", system-ui, -apple-system, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --tabbar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D0F14; --surface: #171A21; --surface-2: #1E222B; --ink: #ECEEF3; --muted: #9AA1B0;
+    --line: #2A2F3A; --accent: #7D9BFF; --accent-ink: #0D0F14; --pos: #4CC795; --neg: #FF7A6E;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D0F14; --surface: #171A21; --surface-2: #1E222B; --ink: #ECEEF3; --muted: #9AA1B0;
+  --line: #2A2F3A; --accent: #7D9BFF; --accent-ink: #0D0F14; --pos: #4CC795; --neg: #FF7A6E;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100%; }
+html { padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+body { margin: 0;
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 520px; margin: 0 auto; }
+
+/* Title bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; align-items: center; gap: 10px; padding-block: 14px 10px; }
+.bar h1 { font-family: var(--f-display); font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 0; flex: 1; text-wrap: balance; }
+.sync { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sync i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.sync[data-s="synced"] i { background: var(--pos); }
+.sync[data-s="error"] i, .sync[data-s="slow"] i { background: var(--neg); }
+.iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; flex: none; box-shadow: var(--shadow); }
+.iconbtn svg { width: 20px; height: 20px; }
+
+/* Tab bar */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 6px max(16px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; justify-content: center; gap: 8px; }
+.tabbar button { flex: 1; max-width: 200px; height: 52px; border: 0; background: none; border-radius: 12px; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+.tabbar button svg { width: 24px; height: 24px; }
+.tabbar button[aria-selected="true"] { color: var(--accent); }
+
+/* Cards stack */
+.stack { display: flex; flex-direction: column; padding-top: 6px; }
+.wcard { position: relative; width: 100%; aspect-ratio: 1.586; max-width: 100%; border-radius: 18px; border: 0; padding: 18px 20px;
+  color: #fff; text-align: left; display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: 0 -2px 10px rgba(0,0,0,.12), 0 10px 24px rgba(0,0,0,.18); overflow: hidden; transition: transform .2s ease; }
+.stack .wcard + .wcard { margin-top: calc(-63.05% + 66px); }
+.wcard:active { transform: translateY(-4px); }
+.wcard::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.22), transparent 55%); }
+.wcard .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; z-index: 1; }
+.wcard .name { font-family: var(--f-display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wcard .fmt { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; background: rgba(255,255,255,.2);
+  padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+.wcard .bottom { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.wcard .cno { font-family: var(--f-mono); font-size: 15px; letter-spacing: .06em; opacity: .92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wcard .note { font-size: 12px; opacity: .8; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-cobalt { background: linear-gradient(135deg, #3B67F0, #1B37A0); }
+.c-ember { background: linear-gradient(135deg, #EE6A40, #B0311A); }
+.c-forest { background: linear-gradient(135deg, #22966B, #0D553C); }
+.c-plum { background: linear-gradient(135deg, #8148DA, #47208A); }
+.c-graphite { background: linear-gradient(135deg, #4A505E, #1C1F27); }
+.c-gold { background: linear-gradient(135deg, #D6A11E, #94680A); }
+.c-rose { background: linear-gradient(135deg, #E5588A, #A0244F); }
+.c-teal { background: linear-gradient(135deg, #1A9FB2, #0A5D6A); }
+
+/* Panels & lists */
+.panel { background: var(--surface); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
+.label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.stackv { display: flex; flex-direction: column; gap: 14px; }
+.balance .amt { font-family: var(--f-display); font-size: 40px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin-top: 4px; overflow-wrap: anywhere; }
+.balance .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.month h2 { font-family: var(--f-display); font-size: 18px; font-weight: 600; margin: 0; }
+.month button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; }
+.month button:disabled { opacity: .35; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.duo .panel { padding: 14px 16px; }
+.duo .v { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+.pos { color: var(--pos); } .neg { color: var(--neg); }
+.bars { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); margin-block: 12px 14px; }
+.bars span { display: block; height: 100%; }
+.cats { display: flex; flex-direction: column; gap: 10px; }
+.catrow { display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center; gap: 10px; font-size: 14px; }
+.catrow .dot { width: 10px; height: 10px; border-radius: 3px; }
+.catrow .pct { color: var(--muted); font-size: 12px; min-width: 34px; text-align: right; }
+.day { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; margin: 6px 4px 6px; }
+.txlist { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+.tx { width: 100%; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 12px; padding: 12px 16px; border: 0; background: none; text-align: left; }
+.tx + .tx { border-top: 1px solid var(--line); }
+.tx .ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-family: var(--f-display); font-weight: 700; color: #fff; font-size: 15px; }
+.tx .t { min-width: 0; }
+.tx .t b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx .t small { color: var(--muted); font-size: 12px; }
+.tx .a { font-weight: 600; white-space: nowrap; }
+.empty { text-align: center; padding: 34px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.empty h3 { font-family: var(--f-display); font-size: 19px; margin: 6px 0 0; }
+.empty p { margin: 0; color: var(--muted); max-width: 32ch; }
+.ghostcard { width: 100%; max-width: 360px; aspect-ratio: 1.586; border-radius: 18px; border: 2px dashed var(--line); display: grid; place-items: center; color: var(--muted); }
+.btn { height: 46px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.alt { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.btn.danger { background: transparent; color: var(--neg); border: 1px solid var(--neg); }
+.btn.danger.armed { background: var(--neg); color: #fff; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row .btn { flex: 1; }
+.banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px dashed var(--line);
+  border-radius: 14px; padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+.banner button { border: 0; background: none; color: var(--accent); font-weight: 600; white-space: nowrap; }
+.curr { height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 0 8px; font-size: 14px; }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; z-index: 30; background: rgba(8,10,14,.45); opacity: 0; transition: opacity .2s ease; }
+.scrim.on { opacity: 1; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; max-height: 92%; overflow-y: auto; background: var(--surface);
+  border-radius: 22px 22px 0 0; transform: translateY(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1);
+  padding: 8px max(18px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
+.sheet.on { transform: none; }
+.sheet .in { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.grab { width: 40px; height: 5px; border-radius: 999px; background: var(--line); margin: 4px auto 0; }
+.shead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.shead h2 { font-family: var(--f-display); font-size: 20px; margin: 0; }
+.close { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface-2); display: grid; place-items: center; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.input { width: 100%; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); padding: 0 14px; font-size: 16px; }
+textarea.input { height: 76px; padding: 12px 14px; resize: none; }
+.input.big { height: 64px; font-family: var(--f-display); font-size: 30px; font-weight: 600; }
+.seg { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
+.seg button { flex: 1; height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; font-size: 14px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatches button { width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent; }
+.swatches button[aria-pressed="true"] { border-color: var(--ink); }
+.err { color: var(--neg); font-size: 13px; min-height: 1em; margin: -6px 0 0; }
+.codebox { background: #fff; color: #111; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.codebox svg { max-width: 100%; height: auto; display: block; }
+.codebox .qr svg { width: 220px; height: 220px; }
+.codebox .digits { font-family: var(--f-mono); font-size: 16px; letter-spacing: .08em; overflow-wrap: anywhere; text-align: center; }
+.hint { font-size: 12px; color: var(--muted); text-align: center; margin: 0; }
+.toast { position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px); z-index: 40;
+  transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
+  font-size: 14px; font-weight: 500; opacity: 0; transition: .2s ease; pointer-events: none; white-space: nowrap; }
+.toast.on { opacity: 1; transform: translateX(-50%); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="bar">
+    <h1 id="title">Cards</h1>
+    <button class="close" id="menuBtn" aria-label="Backup and settings" style="width:40px;height:40px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+    <button class="iconbtn" id="addBtn" aria-label="Add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </header>
+  <main id="view" aria-live="polite"></main>
+</div>
+
+<nav class="tabbar" role="tablist">
+  <button role="tab" id="tab-cards" data-tab="cards" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M6 3.5h12" stroke-linecap="round"/><path d="M3 10.5h18"/></svg>
+    Cards
+  </button>
+  <button role="tab" id="tab-money" data-tab="money" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16" height="11" rx="2.5"/><circle cx="16" cy="13.5" r="1.3" fill="currentColor"/></svg>
+    Money
+  </button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden><div class="in" id="sheetIn"></div></section>
+<div class="toast" id="toast"></div>
+
+<input type="file" id="restoreFile" accept="application/json,.json" hidden>
+<script src="jsbarcode.min.js"></script>
+<script src="qrcode.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LS = "pocket-wallet.v1";
+  var COLORS = ["cobalt", "ember", "forest", "plum", "graphite", "gold", "rose", "teal"];
+  var SWATCH = { cobalt: "#3B67F0", ember: "#EE6A40", forest: "#22966B", plum: "#8148DA", graphite: "#4A505E", gold: "#D6A11E", rose: "#E5588A", teal: "#1A9FB2" };
+  var FORMATS = [["bank", "Bank card"], ["code128", "Barcode"], ["ean13", "EAN-13"], ["qr", "QR"], ["none", "No code"]];
+  var FMT_LABEL = { bank: "Debit / credit", code128: "Barcode", ean13: "EAN-13", qr: "QR", none: "Card" };
+  var OUT_CATS = ["Food", "Groceries", "Transport", "Shopping", "Bills", "Fun", "Health", "Other"];
+  var IN_CATS = ["Pay", "Gift", "Refund", "Other"];
+  var CAT_COLOR = { Food: "#EE6A40", Groceries: "#22966B", Transport: "#3B67F0", Shopping: "#E5588A", Bills: "#8148DA",
+    Fun: "#D6A11E", Health: "#1A9FB2", Other: "#6B7280", Pay: "#188A5E", Gift: "#C2508A", Refund: "#2F7FB8" };
+  var CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "NZD", "JPY", "INR", "MXN", "ZAR", "CHF", "SEK"];
+
+  var state = { cards: [], tx: [], currency: "USD" };
+  var ui = { tab: "cards", month: monthKey(new Date()) };
+
+  // ---------- helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function ymd(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function monthKey(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1); }
+  function parseYmd(s) { var p = s.split("-"); return new Date(+p[0], +p[1] - 1, +(p[2] || 1)); }
+  function shiftMonth(key, n) { var d = parseYmd(key + "-01"); d.setMonth(d.getMonth() + n); return monthKey(d); }
+  function monthName(key) { return parseYmd(key + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" }); }
+  function dayName(s) {
+    var d = parseYmd(s), t = new Date(); t.setHours(0, 0, 0, 0);
+    var diff = Math.round((t - d) / 864e5);
+    if (diff === 0) return "Today"; if (diff === 1) return "Yesterday";
+    return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  }
+  function money(cents, sign) {
+    var v = cents / 100, s;
+    try { s = new Intl.NumberFormat(undefined, { style: "currency", currency: state.currency }).format(Math.abs(v)); }
+    catch (e) { s = Math.abs(v).toFixed(2); }
+    if (sign && cents > 0) return "+" + s;
+    if (cents < 0) return "−" + s;
+    return s;
+  }
+  function groupNo(n) { var s = String(n || "").replace(/\s+/g, ""); return s.length > 6 ? s.replace(/(.{4})(?=.)/g, "$1 ") : s; }
+  function toast(msg) { var t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("on"); }, 1800); }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function normalize(d) {
+    d = d || {};
+    return { cards: Array.isArray(d.cards) ? d.cards : [], tx: Array.isArray(d.tx) ? d.tx : [], currency: typeof d.currency === "string" ? d.currency : "USD" };
+  }
+  function hasSample() { return state.cards.some(function (c) { return c.sample; }) || state.tx.some(function (t) { return t.sample; }); }
+
+  // ---------- storage ----------
+  function saveLocal() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch (e) {} }
+  function loadLocal() { try { var s = localStorage.getItem(LS); if (s) state = normalize(JSON.parse(s)); } catch (e) {} }
+  function commit() { saveLocal(); render(); }
+
+  // ---------- backup ----------
+  function backupFile() {
+    var name = "wallet-backup-" + ymd(new Date()) + ".json";
+    return new File([JSON.stringify(Object.assign({ app: "wallet", version: 1 }, state), null, 2)], name, { type: "application/json" });
+  }
+  function backup() {
+    var f = backupFile();
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      navigator.share({ files: [f], title: "Wallet backup" }).then(function () { toast("Backup saved"); }, function () {});
+      return;
+    }
+    var a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast("Backup downloaded");
+  }
+  function showMenu() {
+    openSheet(shead("Your data") +
+      '<p style="margin:0;color:var(--muted)">Your cards and entries are saved on this phone only. Back them up now and then, so you can get them back on a new phone or if you delete the app.</p>' +
+      '<p style="margin:0;font-size:14px" class="num">' + state.cards.length + " card" + (state.cards.length === 1 ? "" : "s") + " · " + state.tx.length + " entr" + (state.tx.length === 1 ? "y" : "ies") + "</p>" +
+      '<button class="btn" data-act="backup">Back up (save to Files)</button>' +
+      '<button class="btn alt" data-act="restore">Restore from a backup</button>' +
+      '<p class="hint">Restoring replaces what’s in the app now with the backup.</p>', { kind: "menu" });
+  }
+  $("restoreFile").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var d = JSON.parse(r.result);
+        if (!d || (!Array.isArray(d.cards) && !Array.isArray(d.tx))) throw new Error("bad");
+        state = normalize(d); closeSheet(); commit(); toast("Backup restored");
+      } catch (err) { toast("That file isn’t a Wallet backup"); }
+    };
+    r.readAsText(f);
+  });
+
+  // ---------- render ----------
+  function render() {
+    $("title").textContent = ui.tab === "cards" ? "Cards" : "Money";
+    $("addBtn").setAttribute("aria-label", ui.tab === "cards" ? "Add card" : "Add entry");
+    ["cards", "money"].forEach(function (t) { $("tab-" + t).setAttribute("aria-selected", String(ui.tab === t)); });
+    $("view").innerHTML = (hasSample() ? '<div class="banner"><span>You’re looking at example data.</span><button data-act="clear-sample">Remove examples</button></div>' : "") +
+      (ui.tab === "cards" ? renderCards() : renderMoney());
+  }
+
+  function cardFace(c, tag) {
+    tag = tag || "button";
+    return "<" + tag + ' class="wcard c-' + esc(COLORS.indexOf(c.color) >= 0 ? c.color : "cobalt") + '"' + (tag === "button" ? ' data-act="open-card" data-id="' + esc(c.id) + '"' : "") + ">" +
+      '<div class="top"><span class="name">' + esc(c.name) + '</span><span class="fmt">' + esc(FMT_LABEL[c.format] || "Card") + "</span></div>" +
+      '<div class="bottom"><span class="cno">' + esc(c.format === "bank" ? "•••• " + c.number : (groupNo(c.number) || "—")) + "</span>" + (c.note ? '<span class="note">' + esc(c.note) + "</span>" : "") + "</div></" + tag + ">";
+  }
+
+  function renderCards() {
+    if (!state.cards.length) {
+      return '<div class="empty"><div class="ghostcard">No cards yet</div><h3>Keep your cards in one place</h3>' +
+        "<p>Add loyalty, gym, library or gift cards. Show the barcode at the till instead of carrying the plastic.</p>" +
+        '<div class="row" style="width:100%;max-width:360px"><button class="btn" data-act="add">Add a card</button><button class="btn alt" data-act="sample">Show examples</button></div></div>';
+    }
+    return '<div class="stack">' + state.cards.map(function (c) { return cardFace(c); }).join("") + "</div>" +
+      '<p class="hint" style="margin-top:16px">Tap a card to show its code.</p>';
+  }
+
+  function renderMoney() {
+    var all = state.tx, bal = 0;
+    all.forEach(function (t) { bal += t.type === "in" ? t.amount : -t.amount; });
+    var head = '<div class="row" style="justify-content:flex-end;margin-bottom:12px"><label class="label" for="currency" style="align-self:center">Currency</label>' +
+      '<select class="curr" id="currency" data-act="currency">' + CURRENCIES.map(function (c) { return '<option' + (c === state.currency ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></div>";
+    if (!all.length) {
+      return head + '<div class="panel balance"><div class="label">Balance</div><div class="amt num">' + money(0) + '</div><div class="sub">Nothing logged yet</div></div>' +
+        '<div class="empty"><h3>Track where your money goes</h3><p>Log what you spend and what comes in. You’ll see your balance and a breakdown for each month.</p>' +
+        '<div class="row" style="width:100%;max-width:360px"><button class="btn" data-act="add">Add an entry</button><button class="btn alt" data-act="sample">Show examples</button></div></div>';
+    }
+    var m = ui.month, list = all.filter(function (t) { return t.date.slice(0, 7) === m; });
+    var inc = 0, out = 0, byCat = {};
+    list.forEach(function (t) { if (t.type === "in") inc += t.amount; else { out += t.amount; byCat[t.cat] = (byCat[t.cat] || 0) + t.amount; } });
+    var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; });
+    var isNow = m >= monthKey(new Date());
+    var h = head + '<div class="stackv">' +
+      '<div class="panel balance"><div class="label">Balance</div><div class="amt num' + (bal < 0 ? " neg" : "") + '">' + money(bal) + '</div><div class="sub">All money in minus all money out · ' + all.length + " entr" + (all.length === 1 ? "y" : "ies") + "</div></div>" +
+      '<div class="month"><button data-act="month" data-d="-1" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
+      "<h2>" + esc(monthName(m)) + '</h2><button data-act="month" data-d="1" aria-label="Next month"' + (isNow ? " disabled" : "") + '><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
+      '<div class="duo"><div class="panel"><div class="label">Money in</div><div class="v num pos">' + money(inc, true) + '</div></div><div class="panel"><div class="label">Spent</div><div class="v num neg">' + money(-out) + "</div></div></div>";
+    if (out > 0) {
+      h += '<div class="panel"><div class="label">Spending by category</div><div class="bars">' +
+        cats.map(function (c) { return '<span style="width:' + (byCat[c] / out * 100).toFixed(2) + "%;background:" + (CAT_COLOR[c] || "#6B7280") + '"></span>'; }).join("") +
+        '</div><div class="cats">' + cats.map(function (c) {
+          return '<div class="catrow"><span class="dot" style="background:' + (CAT_COLOR[c] || "#6B7280") + '"></span><span>' + esc(c) + '</span><span class="num">' + money(byCat[c]) +
+            '</span><span class="pct num">' + Math.round(byCat[c] / out * 100) + "%</span></div>";
+        }).join("") + "</div></div>";
+    }
+    if (!list.length) {
+      h += '<div class="empty"><p>Nothing logged in ' + esc(monthName(m)) + ".</p></div>";
+    } else {
+      var sorted = list.slice().sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.created || 0) - (a.created || 0); });
+      var groups = [], cur = null;
+      sorted.forEach(function (t) { if (!cur || cur.d !== t.date) { cur = { d: t.date, items: [] }; groups.push(cur); } cur.items.push(t); });
+      h += "<div>" + groups.map(function (g) {
+        return '<div class="day">' + esc(dayName(g.d)) + '</div><div class="txlist">' + g.items.map(function (t) {
+          var col = CAT_COLOR[t.cat] || "#6B7280";
+          return '<button class="tx" data-act="open-tx" data-id="' + esc(t.id) + '"><span class="ic" style="background:' + col + '">' + esc((t.cat || "?").charAt(0)) +
+            '</span><span class="t"><b>' + esc(t.note || t.cat) + "</b><small>" + esc(t.cat) + (t.type === "in" ? " · money in" : "") + (payName(t.pay) ? " · " + esc(payName(t.pay)) : "") + '</small></span><span class="a num ' + (t.type === "in" ? "pos" : "") + '">' +
+            (t.type === "in" ? money(t.amount, true) : money(-t.amount)) + "</span></button>";
+        }).join("") + "</div>";
+      }).join("") + "</div>";
+    }
+    return h + "</div>";
+  }
+
+  // ---------- sheet ----------
+  var sheetCtx = null;
+  function openSheet(html, ctx) {
+    sheetCtx = ctx || {};
+    $("sheetIn").innerHTML = '<div class="grab"></div>' + html;
+    $("scrim").hidden = false; $("sheet").hidden = false;
+    requestAnimationFrame(function () { $("scrim").classList.add("on"); $("sheet").classList.add("on"); });
+  }
+  function closeSheet() {
+    $("scrim").classList.remove("on"); $("sheet").classList.remove("on");
+    setTimeout(function () { $("scrim").hidden = true; $("sheet").hidden = true; $("sheetIn").innerHTML = ""; }, 260);
+    sheetCtx = null;
+  }
+  function shead(title) {
+    return '<div class="shead"><h2>' + esc(title) + '</h2><button class="close" data-act="close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+  }
+
+  function showCard(id) {
+    var c = state.cards.find(function (x) { return x.id === id; }); if (!c) return;
+    var code = "", bank = c.format === "bank";
+    if (bank) code = '<p class="hint" style="font-size:13px">Log spending with this card in the Money tab: pick it under “Paid with”. To pay in shops, use Apple Pay in the iPhone Wallet app.</p>';
+    else if (c.format !== "none" && c.number) code = '<div class="codebox"><div id="codeHost" class="' + (c.format === "qr" ? "qr" : "") + '"></div><div class="digits num">' + esc(groupNo(c.number)) + "</div></div>";
+    else if (c.number) code = '<div class="codebox"><div class="digits num" style="font-size:22px">' + esc(groupNo(c.number)) + "</div></div>";
+    openSheet(shead(c.name) + cardFace(c, "div") + code +
+      (!bank && c.format !== "none" && c.number ? '<p class="hint">Turn your screen brightness up so the scanner can read it.</p>' : "") +
+      (c.note ? '<p style="margin:0;color:var(--muted)">' + esc(c.note) + "</p>" : "") +
+      '<div class="row">' + (c.number && !bank ? '<button class="btn alt" data-act="copy" data-v="' + esc(c.number) + '">Copy number</button>' : "") +
+      '<button class="btn alt" data-act="edit-card" data-id="' + esc(c.id) + '">Edit</button></div>' +
+      '<button class="btn danger" data-act="del-card" data-id="' + esc(c.id) + '">Delete card</button>', { kind: "card", id: id });
+    var host = $("codeHost"); if (!host || bank) return;
+    if (c.format === "qr") {
+      try { var q = qrcode(0, "M"); q.addData(c.number); q.make(); host.innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); }
+      catch (e) { host.textContent = "Couldn’t draw this QR code."; }
+    } else {
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); host.appendChild(svg);
+      var opts = { displayValue: false, height: 90, width: 2.2, margin: 4, background: "#ffffff", lineColor: "#111111" };
+      var ok = false;
+      try { JsBarcode(svg, c.number.replace(/\s+/g, ""), Object.assign({ format: c.format === "ean13" ? "EAN13" : "CODE128", valid: function (v) { ok = v; } }, opts)); } catch (e) { ok = false; }
+      if (!ok) {
+        try { JsBarcode(svg, c.number, Object.assign({ format: "CODE128" }, opts)); ok = true; } catch (e2) {}
+        if (c.format === "ean13") host.insertAdjacentHTML("afterend", '<p class="hint" style="color:#8a2a22">This number isn’t a valid EAN-13, so it’s shown as a standard barcode.</p>');
+      }
+      if (!ok) host.textContent = "Couldn’t draw a barcode for this number.";
+      else { svg.removeAttribute("width"); svg.removeAttribute("height"); svg.style.width = "100%"; svg.style.maxHeight = "110px"; }
+    }
+  }
+
+  function cardForm(c) {
+    var isNew = !c; c = c || { name: "", number: "", format: "code128", color: COLORS[state.cards.length % COLORS.length], note: "" };
+    openSheet(shead(isNew ? "Add a card" : "Edit card") +
+      '<label class="field"><span>Card name</span><input class="input" id="f-name" maxlength="40" placeholder="e.g. Target Circle" value="' + esc(c.name) + '"></label>' +
+      '<div class="field"><span>Card type</span><div class="seg" id="f-format">' + FORMATS.map(function (f) { return '<button type="button" data-v="' + f[0] + '" aria-pressed="' + (c.format === f[0]) + '">' + f[1] + "</button>"; }).join("") + "</div></div>" +
+      '<label class="field"><span id="f-numlabel"></span><input class="input" id="f-number" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="200" value="' + esc(c.number) + '"></label>' +
+      '<div class="field"><span>Colour</span><div class="swatches" id="f-color">' + COLORS.map(function (k) { return '<button type="button" data-v="' + k + '" aria-label="' + k + '" aria-pressed="' + (c.color === k) + '" style="background:' + SWATCH[k] + '"></button>'; }).join("") + "</div></div>" +
+      '<label class="field"><span>Note (optional)</span><input class="input" id="f-note" maxlength="60" placeholder="e.g. Member since 2021, PIN on back" value="' + esc(c.note) + '"></label>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-card">' + (isNew ? "Add card" : "Save changes") + "</button>", { kind: "cardform", id: isNew ? null : c.id });
+    numLabel(c.format);
+  }
+  function numLabel(f) {
+    var bank = f === "bank", n = $("f-number");
+    $("f-numlabel").textContent = bank ? "Last 4 digits only" : "Card number";
+    n.placeholder = bank ? "e.g. 1234 (never the full number)" : "The number printed under the barcode";
+    n.setAttribute("inputmode", bank ? "numeric" : "text"); n.maxLength = bank ? 4 : 200;
+    $("f-name").placeholder = bank ? "e.g. Visa debit" : "e.g. Target Circle";
+  }
+
+  function txForm(t) {
+    var isNew = !t; t = t || { type: "out", amount: 0, cat: "Food", note: "", date: ymd(new Date()) };
+    openSheet(shead(isNew ? "Add an entry" : "Edit entry") +
+      '<div class="seg" id="f-type"><button type="button" data-v="out" aria-pressed="' + (t.type === "out") + '">Spent</button><button type="button" data-v="in" aria-pressed="' + (t.type === "in") + '">Money in</button></div>' +
+      '<label class="field"><span>Amount (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + (t.amount ? (t.amount / 100).toFixed(2) : "") + '"></label>' +
+      '<div class="field"><span>Category</span><div class="chips" id="f-cat"></div></div>' +
+      '<div class="field"><span>Paid with</span><div class="chips" id="f-pay">' + payOpts().map(function (p) { return '<button type="button" data-v="' + esc(p[0]) + '" aria-pressed="' + ((t.pay || "") === p[0]) + '">' + esc(p[1]) + "</button>"; }).join("") + "</div></div>" +
+      '<label class="field"><span>What was it? (optional)</span><input class="input" id="f-note" maxlength="60" placeholder="e.g. Lunch with Sam" value="' + esc(t.note) + '"></label>' +
+      '<label class="field"><span>Date</span><input class="input" id="f-date" type="date" value="' + esc(t.date) + '"></label>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-tx">' + (isNew ? "Add entry" : "Save changes") + "</button>" +
+      (isNew ? "" : '<button class="btn danger" data-act="del-tx" data-id="' + esc(t.id) + '">Delete entry</button>'), { kind: "txform", id: isNew ? null : t.id, type: t.type, cat: t.cat, pay: t.pay || "" });
+    drawCats();
+    if (isNew) setTimeout(function () { var a = $("f-amount"); if (a) a.focus(); }, 300);
+  }
+  function drawCats() {
+    var cats = sheetCtx.type === "in" ? IN_CATS : OUT_CATS;
+    if (cats.indexOf(sheetCtx.cat) < 0) sheetCtx.cat = cats[0];
+    $("f-cat").innerHTML = cats.map(function (c) { return '<button type="button" data-v="' + c + '" aria-pressed="' + (c === sheetCtx.cat) + '">' + c + "</button>"; }).join("");
+  }
+  function payOpts() {
+    return [["", "Not set"], ["cash", "Cash"]].concat(state.cards.filter(function (c) { return c.format === "bank"; }).map(function (c) { return [c.id, c.name + " •••• " + c.number]; }));
+  }
+  function payName(id) {
+    if (!id) return ""; if (id === "cash") return "Cash";
+    var c = state.cards.find(function (x) { return x.id === id; }); return c ? c.name + " •••• " + c.number : "";
+  }
+  function pressed(groupId) { var b = $(groupId).querySelector('[aria-pressed="true"]'); return b ? b.dataset.v : null; }
+
+  // ---------- sample data ----------
+  function addSample() {
+    var d = function (n) { var x = new Date(); x.setDate(x.getDate() - n); return ymd(x); }, now = Date.now();
+    if (!state.cards.length) state.cards = [
+      { id: uid(), sample: true, name: "Corner Grocer Rewards", number: "4006381333931", format: "ean13", color: "forest", note: "Points card" },
+      { id: uid(), sample: true, name: "City Gym", number: "GYM-20417-8823", format: "qr", color: "graphite", note: "Front desk scan" },
+      { id: uid(), sample: true, name: "Book Nook Gift Card", number: "6280 1134 5590 2271", format: "code128", color: "plum", note: "$25 left" },
+      { id: uid(), sample: true, name: "Coffee Club", number: "CC88120544", format: "code128", color: "ember", note: "" }
+    ];
+    if (!state.tx.length) state.tx = [
+      { type: "in", amount: 185000, cat: "Pay", note: "Paycheck", date: d(12) },
+      { type: "out", amount: 9520, cat: "Groceries", note: "Weekly shop", date: d(1) },
+      { type: "out", amount: 1450, cat: "Food", note: "Lunch", date: d(0) },
+      { type: "out", amount: 450, cat: "Food", note: "Coffee", date: d(0) },
+      { type: "out", amount: 6000, cat: "Bills", note: "Phone plan", date: d(3) },
+      { type: "out", amount: 2750, cat: "Transport", note: "Gas", date: d(4) },
+      { type: "out", amount: 3999, cat: "Shopping", note: "Sneakers on sale", date: d(6) },
+      { type: "out", amount: 1800, cat: "Fun", note: "Movie night", date: d(8) },
+      { type: "in", amount: 2500, cat: "Gift", note: "Birthday money", date: d(9) },
+      { type: "out", amount: 11240, cat: "Groceries", note: "Big shop", date: d(9) }
+    ].map(function (t, i) { t.id = uid() + i; t.sample = true; t.created = now - i; return t; });
+    commit(); toast("Examples added");
+  }
+
+  // ---------- events ----------
+  document.addEventListener("click", function (e) {
+    var tab = e.target.closest("[data-tab]");
+    if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
+    if (e.target.closest("#addBtn")) { ui.tab === "cards" ? cardForm() : txForm(); return; }
+    if (e.target.closest("#menuBtn")) { showMenu(); return; }
+    if (e.target === $("scrim")) { closeSheet(); return; }
+    var seg = e.target.closest(".seg button, .chips button, .swatches button");
+    if (seg && seg.parentElement.id) {
+      seg.parentElement.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b === seg)); });
+      if (seg.parentElement.id === "f-type") { sheetCtx.type = seg.dataset.v; drawCats(); }
+      if (seg.parentElement.id === "f-cat") sheetCtx.cat = seg.dataset.v;
+      if (seg.parentElement.id === "f-pay") sheetCtx.pay = seg.dataset.v;
+      if (seg.parentElement.id === "f-format") numLabel(seg.dataset.v);
+      return;
+    }
+    var el = e.target.closest("[data-act]"); if (!el) return;
+    var act = el.dataset.act, id = el.dataset.id;
+    if (act === "add") { ui.tab === "cards" ? cardForm() : txForm(); }
+    else if (act === "sample") addSample();
+    else if (act === "backup") backup();
+    else if (act === "restore") $("restoreFile").click();
+    else if (act === "clear-sample") {
+      state.cards = state.cards.filter(function (c) { return !c.sample; }); state.tx = state.tx.filter(function (t) { return !t.sample; });
+      commit(); toast("Examples removed");
+    }
+    else if (act === "close") closeSheet();
+    else if (act === "open-card") showCard(id);
+    else if (act === "edit-card") cardForm(state.cards.find(function (c) { return c.id === id; }));
+    else if (act === "copy") {
+      var v = el.dataset.v;
+      try { navigator.clipboard.writeText(v).then(function () { toast("Number copied"); }, function () { toast(v); }); } catch (err) { toast(v); }
+    }
+    else if (act === "del-card" || act === "del-tx") {
+      if (!el.classList.contains("armed")) { el.classList.add("armed"); el.textContent = "Tap again to delete"; return; }
+      if (act === "del-card") state.cards = state.cards.filter(function (c) { return c.id !== id; });
+      else state.tx = state.tx.filter(function (t) { return t.id !== id; });
+      closeSheet(); commit(); toast("Deleted");
+    }
+    else if (act === "save-card") {
+      var name = $("f-name").value.trim(), number = $("f-number").value.trim(), format = pressed("f-format") || "code128";
+      if (!name) { $("f-err").textContent = "Give the card a name."; return; }
+      if (format !== "none" && !number) { $("f-err").textContent = "Add the card number, or choose “No code”."; return; }
+      if (format === "bank" && !/^\d{4}$/.test(number)) { $("f-err").textContent = "Enter only the last 4 digits of the card. Don’t save the full number here."; return; }
+      if (format === "ean13" && !/^\d{12,13}$/.test(number.replace(/\s+/g, ""))) { $("f-err").textContent = "EAN-13 numbers are 13 digits. Check the number or pick “Barcode”."; return; }
+      var card = { name: name, number: number, format: format, color: pressed("f-color") || "cobalt", note: $("f-note").value.trim() };
+      if (sheetCtx.id) { var i = state.cards.findIndex(function (c) { return c.id === sheetCtx.id; }); if (i >= 0) state.cards[i] = Object.assign({}, state.cards[i], card, { sample: false }); }
+      else { card.id = uid(); state.cards.push(card); }
+      var editedId = sheetCtx.id; closeSheet(); commit(); toast(editedId ? "Card saved" : "Card added");
+    }
+    else if (act === "open-tx") txForm(state.tx.find(function (t) { return t.id === id; }));
+    else if (act === "save-tx") {
+      var raw = $("f-amount").value.replace(/[^\d.,]/g, "").replace(",", ".");
+      var amt = Math.round(parseFloat(raw) * 100), date = $("f-date").value || ymd(new Date());
+      if (!(amt > 0)) { $("f-err").textContent = "Enter an amount above zero."; return; }
+      var t = { type: sheetCtx.type, amount: amt, cat: sheetCtx.cat, pay: sheetCtx.pay || "", note: $("f-note").value.trim(), date: date };
+      if (sheetCtx.id) { var j = state.tx.findIndex(function (x) { return x.id === sheetCtx.id; }); if (j >= 0) state.tx[j] = Object.assign({}, state.tx[j], t, { sample: false }); }
+      else { t.id = uid(); t.created = Date.now(); state.tx.push(t); }
+      var wasEdit = sheetCtx.id; closeSheet(); ui.month = date.slice(0, 7); commit(); toast(wasEdit ? "Entry saved" : "Entry added");
+    }
+    else if (act === "month") { ui.month = shiftMonth(ui.month, +el.dataset.d); render(); }
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target.id === "currency") { state.currency = e.target.value; commit(); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sheetCtx) closeSheet(); });
+
+  loadLocal(); render();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+  }
+})();
+</script>
+</body>
+</html>
