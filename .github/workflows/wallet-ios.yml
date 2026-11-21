@@ -1,0 +1,78 @@
+name: Build Wallet iPhone app
+
+on:
+  push:
+    paths:
+      - "wallet/**"
+      - "native/**"
+      - ".github/workflows/wallet-ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wallet-ios
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Capacitor
+        working-directory: native
+        run: npm install --no-audit --no-fund
+
+      - name: Create the iOS project
+        working-directory: native
+        run: |
+          npx cap add ios
+          # app icon
+          ICONSET=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          cp icon-1024.png "$ICONSET/AppIcon-512@2x.png"
+          # camera (barcode scanning) and photo permissions
+          PLIST=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Scan the barcode on a card so you don’t have to type its number.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Add a photo of a card or a receipt.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Save a backup or receipt photo.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIFileSharingEnabled bool true" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSSupportsOpeningDocumentsInPlace bool true" "$PLIST"
+          npx cap sync ios
+
+      - name: Build (unsigned)
+        working-directory: native/ios/App
+        run: |
+          if [ -d App.xcworkspace ]; then TARGET="-workspace App.xcworkspace"; else TARGET="-project App.xcodeproj"; fi
+          xcodebuild $TARGET -scheme App -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -n 40
+          test -d "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+
+      - name: Package .ipa
+        run: |
+          mkdir -p "$RUNNER_TEMP/out/Payload"
+          cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/out/Payload/"
+          cd "$RUNNER_TEMP/out" && zip -qr PocketWallet.ipa Payload
+          ls -la "$RUNNER_TEMP/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PocketWallet-ipa
+          path: ${{ runner.temp }}/out/PocketWallet.ipa
+
+      - name: Publish to the wallet-ios release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete wallet-ios --yes --cleanup-tag || true
+          gh release create wallet-ios "$RUNNER_TEMP/out/PocketWallet.ipa" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Pocket Wallet for iPhone (latest build)" \
+            --notes "Unsigned iPhone app. Install it with SideStore or AltStore, which sign it with your Apple ID. Built from ${GITHUB_SHA::7}."
