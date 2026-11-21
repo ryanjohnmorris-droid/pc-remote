@@ -1,289 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Wallet</title>
-<meta name="description" content="Your loyalty cards and spending, on your phone.">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Wallet">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#EDEFF3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D0F14" media="(prefers-color-scheme: dark)">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" type="image/png" href="icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
-<style>
-/* Layout: one-column phone app — sticky title bar, scrolling view, fixed bottom tab bar, bottom sheets for forms. */
-:root {
-  --bg: #EDEFF3; --surface: #FFFFFF; --surface-2: #F5F6F9; --ink: #141820; --muted: #646B7A; --line: #DCE0E8;
-  --accent: #2F5BEA; --accent-ink: #FFFFFF; --pos: #188A5E; --neg: #CC3F35; --warn: #C98A0B;
-  --shadow: 0 1px 2px rgba(20,24,32,.06), 0 8px 24px rgba(20,24,32,.08);
-  --f-display: "Sora", "Inter", system-ui, -apple-system, sans-serif;
-  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --tabbar-h: 64px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0D0F14; --surface: #171A21; --surface-2: #1E222B; --ink: #ECEEF3; --muted: #9AA1B0; --line: #2A2F3A;
-    --accent: #7D9BFF; --accent-ink: #0D0F14; --pos: #4CC795; --neg: #FF7A6E; --warn: #F0B53C;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); color-scheme: dark;
-  }
-}
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { min-height: 100%; }
-html { padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
-[hidden] { display: none !important; }
-img { max-width: 100%; }
-body { margin: 0;
-  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 0 calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 24px);
-}
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.num { font-variant-numeric: tabular-nums; }
-.wrap { max-width: 520px; margin: 0 auto; }
-
-.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
-  display: flex; align-items: center; gap: 10px; padding-block: 14px 10px; }
-.bar h1 { font-family: var(--f-display); font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin: 0; flex: 1; }
-.iconbtn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink);
-  display: grid; place-items: center; flex: none; box-shadow: var(--shadow); }
-.iconbtn svg { width: 20px; height: 20px; }
-.round { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--surface-2); display: grid; place-items: center; flex: none; }
-
-.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line);
-  padding: 6px max(16px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  display: flex; justify-content: center; gap: 8px; }
-.tabbar button { flex: 1; max-width: 160px; height: 52px; border: 0; background: none; border-radius: 12px; color: var(--muted);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; letter-spacing: .02em; }
-.tabbar button svg { width: 24px; height: 24px; }
-.tabbar button[aria-selected="true"] { color: var(--accent); }
-
-.search { width: 100%; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 0 14px 0 38px; font-size: 16px; margin-bottom: 12px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: 12px center; }
-
-.stack { display: flex; flex-direction: column; padding-top: 6px; }
-.wcard { position: relative; width: 100%; aspect-ratio: 1.586; max-width: 100%; border-radius: 18px; border: 0; padding: 18px 20px;
-  color: #fff; text-align: left; display: flex; flex-direction: column; justify-content: space-between;
-  box-shadow: 0 -2px 10px rgba(0,0,0,.12), 0 10px 24px rgba(0,0,0,.18); overflow: hidden; transition: transform .2s ease; isolation: isolate; }
-.stack .wcard + .wcard { margin-top: calc(-63.05% + 66px); }
-.wcard:active { transform: translateY(-4px); }
-.wcard::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.22), transparent 55%); }
-.wcard .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; z-index: 1; }
-.wcard .name { font-family: var(--f-display); font-weight: 600; font-size: 19px; letter-spacing: -.01em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.wcard .fmt { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; background: rgba(255,255,255,.2); padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
-.wcard .bottom { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.wcard .cno { font-family: var(--f-mono); font-size: 15px; letter-spacing: .06em; opacity: .92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.wcard .note { font-size: 12px; opacity: .85; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wcard .bal { font-family: var(--f-display); font-size: 15px; font-weight: 600; background: rgba(0,0,0,.18); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
-.c-cobalt { background: linear-gradient(135deg, #3B67F0, #1B37A0); } .c-ember { background: linear-gradient(135deg, #EE6A40, #B0311A); }
-.c-forest { background: linear-gradient(135deg, #22966B, #0D553C); } .c-plum { background: linear-gradient(135deg, #8148DA, #47208A); }
-.c-graphite { background: linear-gradient(135deg, #4A505E, #1C1F27); } .c-gold { background: linear-gradient(135deg, #D6A11E, #94680A); }
-.c-rose { background: linear-gradient(135deg, #E5588A, #A0244F); } .c-teal { background: linear-gradient(135deg, #1A9FB2, #0A5D6A); }
-
-.panel { background: var(--surface); border-radius: 18px; padding: 18px; box-shadow: var(--shadow); }
-.panel h3 { font-family: var(--f-display); font-size: 17px; margin: 0; }
-.phead { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
-.link { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 14px; padding: 4px 0; }
-.label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.stackv { display: flex; flex-direction: column; gap: 14px; }
-.balance .amt { font-family: var(--f-display); font-size: 40px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin-top: 4px; overflow-wrap: anywhere; }
-.sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.month h2 { font-family: var(--f-display); font-size: 18px; font-weight: 600; margin: 0; }
-.month button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; }
-.month button:disabled { opacity: .35; }
-.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.duo .panel { padding: 14px 16px; }
-.duo .v { font-family: var(--f-display); font-size: 20px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
-.pos { color: var(--pos); } .neg { color: var(--neg); } .warn { color: var(--warn); }
-.bars { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2); margin-block: 12px 14px; }
-.bars span { display: block; height: 100%; }
-.cats { display: flex; flex-direction: column; gap: 10px; }
-.catrow { display: grid; grid-template-columns: 10px 1fr auto auto; align-items: center; gap: 10px; font-size: 14px; }
-.catrow .dot { width: 10px; height: 10px; border-radius: 3px; }
-.catrow .pct { color: var(--muted); font-size: 12px; min-width: 34px; text-align: right; }
-.meter { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 6px; }
-.meter span { display: block; height: 100%; border-radius: 999px; background: var(--pos); }
-.meter.warn span { background: var(--warn); } .meter.over span { background: var(--neg); } .meter.goal span { background: var(--accent); }
-.mrow { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
-.mrow b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mrow span { color: var(--muted); white-space: nowrap; }
-.blist { display: flex; flex-direction: column; gap: 14px; }
-.item { width: 100%; border: 0; background: none; text-align: left; padding: 0; }
-.chart svg { width: 100%; height: auto; display: block; }
-.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-top: 6px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-.day { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; margin: 6px 4px; }
-.txlist { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
-.tx { width: 100%; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 12px; padding: 12px 16px; border: 0; background: none; text-align: left; }
-.swipe { position: relative; overflow: hidden; }
-.swipe + .swipe { border-top: 1px solid var(--line); }
-.swdel { position: absolute; top: 0; right: 0; bottom: 0; width: 96px; border: 0; background: var(--neg); color: #fff; font-weight: 700; font-size: 14px; }
-.swipe .tx { position: relative; z-index: 1; background: var(--surface); transition: transform .2s ease; }
-.swipe.dragging .tx { transition: none; }
-.tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--pos); margin-left: 4px; }
-.ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font-family: var(--f-display); font-weight: 700; color: #fff; font-size: 15px; }
-.tx .t { min-width: 0; }
-.tx .t b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tx .t small { color: var(--muted); font-size: 12px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tx .a { font-weight: 600; white-space: nowrap; }
-.empty { text-align: center; padding: 30px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.empty h3 { font-family: var(--f-display); font-size: 19px; margin: 6px 0 0; }
-.empty p { margin: 0; color: var(--muted); max-width: 34ch; }
-.ghostcard { width: 100%; max-width: 360px; aspect-ratio: 1.586; border-radius: 18px; border: 2px dashed var(--line); display: grid; place-items: center; color: var(--muted); }
-.btn { height: 46px; padding: 0 18px; border-radius: 12px; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-.btn.alt { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
-.btn.danger { background: transparent; color: var(--neg); border: 1px solid var(--neg); }
-.btn.danger.armed { background: var(--neg); color: #fff; }
-.btn.sm { height: 38px; padding: 0 14px; font-size: 14px; }
-.row { display: flex; gap: 10px; flex-wrap: wrap; }
-.row .btn { flex: 1; }
-.banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px dashed var(--line);
-  border-radius: 14px; padding: 10px 14px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
-.banner button { border: 0; background: none; color: var(--accent); font-weight: 600; white-space: nowrap; }
-.curr { height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); padding: 0 8px; font-size: 14px; }
-
-.scrim { position: fixed; inset: 0; z-index: 30; background: rgba(8,10,14,.45); opacity: 0; transition: opacity .2s ease; }
-.scrim.on { opacity: 1; }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; max-height: 92%; overflow-y: auto; background: var(--surface);
-  border-radius: 22px 22px 0 0; transform: translateY(100%); transition: transform .26s cubic-bezier(.2,.8,.2,1); -webkit-overflow-scrolling: touch;
-  padding: 8px max(18px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); }
-.sheet.on { transform: none; }
-.sheet .in { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-.grab { width: 40px; height: 5px; border-radius: 999px; background: var(--line); margin: 4px auto 0; }
-.shead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.shead h2 { font-family: var(--f-display); font-size: 20px; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.close { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface-2); display: grid; place-items: center; flex: none; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field > span { font-size: 13px; font-weight: 600; color: var(--muted); }
-.input { width: 100%; height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); padding: 0 14px; font-size: 16px; }
-.input.big { height: 64px; font-family: var(--f-display); font-size: 30px; font-weight: 600; }
-.inrow { display: flex; gap: 8px; } .inrow .input { flex: 1; min-width: 0; }
-.seg { display: flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
-.seg button { flex: 1; height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; font-size: 14px; color: var(--muted); }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chips button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px; }
-.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
-.swatches button { width: 38px; height: 38px; border-radius: 50%; border: 3px solid transparent; }
-.swatches button[aria-pressed="true"] { border-color: var(--ink); }
-.err { color: var(--neg); font-size: 13px; min-height: 1em; margin: -6px 0 0; }
-.codebox { background: #fff; color: #111; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.codebox svg { max-width: 100%; height: auto; display: block; }
-.codebox .qr svg { width: 220px; height: 220px; }
-.codebox .digits { font-family: var(--f-mono); font-size: 16px; letter-spacing: .08em; overflow-wrap: anywhere; text-align: center; }
-.hint { font-size: 12px; color: var(--muted); text-align: center; margin: 0; }
-.scan { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4/3; }
-.scan video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.scan::after { content: ""; position: absolute; left: 12%; right: 12%; top: 30%; bottom: 30%; border: 2px solid rgba(255,255,255,.85); border-radius: 12px; box-shadow: 0 0 0 999px rgba(0,0,0,.25); }
-.photos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.photo { position: relative; aspect-ratio: 1.586; border-radius: 12px; border: 1px dashed var(--line); background: var(--surface-2); display: grid; place-items: center; color: var(--muted); font-size: 13px; overflow: hidden; padding: 0; }
-.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.photo .x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; font-size: 14px; }
-.bigphoto { width: 100%; border-radius: 14px; display: block; }
-.gpart { display: flex; flex-direction: column; gap: 6px; }
-.gstep { display: grid; grid-template-columns: 32px 1fr; gap: 12px; align-items: start; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--surface-2); border-radius: 14px; padding: 12px; }
-.gstep .gnum { width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--f-display); font-weight: 700; font-size: 14px; }
-.gstep .gtxt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.gstep .gdo { font-size: 16px; line-height: 1.4; }
-.gstep .gsee { font-size: 13px; color: var(--muted); line-height: 1.4; }
-.gstep.done { opacity: .6; } .gstep.done .gnum { background: var(--pos); }
-.mono { font-family: var(--f-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
-.fullcode { position: fixed; inset: 0; z-index: 95; background: #fff; color: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  padding: max(24px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); }
-.fullcode .fc-name { font-family: var(--f-display); font-size: 22px; font-weight: 700; text-align: center; }
-.fullcode .fc-code { width: 100%; max-width: 640px; display: flex; justify-content: center; }
-.fullcode .fc-code.qr svg { width: min(80vw, 60vh); height: auto; }
-.fullcode .fc-num { font-family: var(--f-mono); font-size: 22px; letter-spacing: .1em; text-align: center; overflow-wrap: anywhere; }
-.fullcode .fc-hint { font-size: 13px; color: #666; text-align: center; }
-.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.cal-h { font-size: 11px; color: var(--muted); text-align: center; font-weight: 600; padding-bottom: 2px; }
-.cal-d { aspect-ratio: 1; border: 0; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink); background: var(--surface-2); position: relative; padding: 0; }
-.cal-d[style] { background: color-mix(in srgb, var(--neg) calc(var(--a) * 100%), var(--surface-2)); color: #fff; }
-.cal-d.zero { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pos) 55%, transparent); color: var(--pos); }
-.cal-d.future { opacity: .35; }
-.cal-d.today { outline: 2px solid var(--accent); outline-offset: 1px; }
-.chips .rchip b { font-weight: 700; margin-left: 4px; }
-.photo.receipt { aspect-ratio: auto; height: 96px; width: 100%; }
-.toast { position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px); z-index: 60;
-  transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
-  font-size: 14px; font-weight: 500; opacity: 0; transition: .2s ease; pointer-events: none; white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
-.toast.on { opacity: 1; transform: translateX(-50%); }
-.toast.undo { pointer-events: auto; display: flex; align-items: center; gap: 14px; padding: 6px 6px 6px 16px; }
-.toast .ub { border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; height: 34px; padding: 0 14px; }
-.lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); text-align: center; }
-.lock img { width: 76px; height: 76px; border-radius: 18px; }
-.lock h2 { font-family: var(--f-display); margin: 0; font-size: 22px; }
-.lock .box { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; }
-.setrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-</style>
-</head>
-<body>
-<div class="wrap" id="app" hidden>
-  <header class="bar">
-    <h1 id="title">Cards</h1>
-    <button class="round" id="menuBtn" aria-label="Settings and backup">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-    </button>
-    <button class="iconbtn" id="addBtn" aria-label="Add">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-  </header>
-  <main id="view" aria-live="polite"></main>
-</div>
-
-<nav class="tabbar" id="tabbar" role="tablist" hidden>
-  <button role="tab" id="tab-cards" data-tab="cards" aria-selected="true">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M6 3.5h12" stroke-linecap="round"/><path d="M3 10.5h18"/></svg>
-    Cards
-  </button>
-  <button role="tab" id="tab-money" data-tab="money" aria-selected="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="16" height="11" rx="2.5"/><circle cx="16" cy="13.5" r="1.3" fill="currentColor"/></svg>
-    Money
-  </button>
-  <button role="tab" id="tab-plan" data-tab="plan" aria-selected="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
-    Plan
-  </button>
-</nav>
-
-<div class="scrim" id="scrim" hidden></div>
-<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden><div class="in" id="sheetIn"></div></section>
-<div class="toast" id="toast"></div>
-
-<div class="lock" id="lock" hidden>
-  <img src="apple-touch-icon.png" alt="">
-  <h2>Wallet is locked</h2>
-  <div class="box">
-    <button class="btn" id="unlockFace" type="button">Unlock with Face ID</button>
-    <form id="pinForm" class="box" autocomplete="off">
-      <input class="input" id="pinIn" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Or enter your PIN" aria-label="PIN">
-      <button class="btn alt" type="submit">Unlock with PIN</button>
-    </form>
-    <p class="err" id="lockErr" style="margin:0"></p>
-  </div>
-</div>
-
-<input type="file" id="restoreFile" accept="application/json,.json" hidden>
-<input type="file" id="photoFile" accept="image/*" hidden>
-<input type="file" id="scanFile" accept="image/*" hidden>
-<input type="file" id="importFile" accept=".txt,text/plain,.csv" hidden>
-<script src="jsbarcode.min.js"></script>
-<script src="qrcode.js"></script>
-<script>
+// Wallet app logic. Loaded by index.html.
 (function () {
   "use strict";
   var OLD_LS = "pocket-wallet.v1", LS = "wallet.state.v2", LOCK_LS = "wallet.lock.v1";
@@ -377,6 +92,7 @@ button { cursor: pointer; }
     if (d.cats && okCats(d.cats.out) && okCats(d.cats.in)) b.cats = { out: d.cats.out, in: d.cats.in };
     if (!b.cats.in.some(function (c) { return c.name === "Paid back"; })) b.cats.in.splice(Math.max(0, b.cats.in.length - 1), 0, { name: "Paid back", color: "#3E9C8F" });
     b.imported = Array.isArray(d.imported) ? d.imported : [];
+    b.crypto = Array.isArray(d.crypto) ? d.crypto : [];
     if (Array.isArray(d.dismissedSubs)) b.dismissedSubs = d.dismissedSubs;
     ["created", "lastBackup", "snoozeBackup", "reportSeen", "openTo"].forEach(function (k) { if (d[k] != null) b[k] = d[k]; });
     if (!b.created) b.created = Date.now();
@@ -384,7 +100,7 @@ button { cursor: pointer; }
   }
   function hasSample() {
     var f = function (x) { return x.sample; };
-    return state.cards.some(f) || state.tx.some(f) || state.bills.some(f) || state.goals.some(f) || state.accounts.some(f) || state.ious.some(f) || !!state.sampleBudgets;
+    return state.cards.some(f) || state.tx.some(f) || state.bills.some(f) || state.goals.some(f) || state.accounts.some(f) || state.ious.some(f) || (state.crypto || []).some(f) || !!state.sampleBudgets;
   }
 
   // ---------- storage (IndexedDB, falls back to localStorage) ----------
@@ -417,20 +133,35 @@ button { cursor: pointer; }
       undoStack.push(lastSaved); if (undoStack.length > 20) undoStack.shift(); justChanged = true;
     }
     lastSaved = json;
-    var snap = JSON.parse(json);
-    saving = saving.then(function () { return kvSet("state", snap); }).catch(function () {
-      try { localStorage.setItem(LS, JSON.stringify(snap)); } catch (e) { toast("Couldn’t save. Your phone may be out of space."); }
-    });
+    var enc = encOn(), key = dataKey;
+    if (enc && !key) return; // locked: never write anything without the key
+    saving = saving.then(function () {
+      if (enc) return aesEnc(key, te.encode(json)).then(function (box) { var v = { enc: box }; return kvSet("state", v).catch(function () { localStorage.setItem(LS, JSON.stringify(v)); }); });
+      var snap = JSON.parse(json);
+      return kvSet("state", snap).catch(function () { localStorage.setItem(LS, JSON.stringify(snap)); });
+    }).catch(function () { toast("Couldn’t save. Your phone may be out of space."); });
   }
-  function load() {
+  function encOn() { return !!(lockCfg && lockCfg.v === 2); }
+  function readStored() {
     return kvGet("state").then(function (s) {
       if (s) return s;
       try { var old = localStorage.getItem(LS) || localStorage.getItem(OLD_LS); if (old) return JSON.parse(old); } catch (e) {}
       return null;
     }, function () {
       try { var old = localStorage.getItem(LS) || localStorage.getItem(OLD_LS); return old ? JSON.parse(old) : null; } catch (e) { return null; }
-    }).then(function (s) { state = normalize(s); });
+    });
   }
+  // decrypt (when needed) and load what's stored into memory
+  function openData() {
+    return readStored().then(function (s) {
+      if (s && s.enc) {
+        if (!dataKey) throw new Error("locked");
+        return aesDec(dataKey, s.enc).then(function (buf) { state = normalize(JSON.parse(td.decode(buf))); });
+      }
+      state = normalize(s);
+    }).then(function () { lastSaved = JSON.stringify(state); });
+  }
+  function load() { return encOn() ? Promise.resolve() : openData(); }
   function loadLock() {
     return kvGet("lock").catch(function () { try { return JSON.parse(localStorage.getItem(LOCK_LS) || "null"); } catch (e) { return null; } })
       .then(function (c) { lockCfg = c || null; });
@@ -505,15 +236,16 @@ button { cursor: pointer; }
   }
 
   // ---------- render ----------
-  var TITLES = { cards: "Cards", money: "Money", plan: "Plan" };
+  var TITLES = { cards: "Cards", money: "Money", crypto: "Crypto", plan: "Plan" };
   function render() {
     $("title").textContent = TITLES[ui.tab];
-    $("addBtn").setAttribute("aria-label", ui.tab === "cards" ? "Add card" : ui.tab === "money" ? "Add entry" : "Add to plan");
-    ["cards", "money", "plan"].forEach(function (t) { $("tab-" + t).setAttribute("aria-selected", String(ui.tab === t)); });
+    $("addBtn").setAttribute("aria-label", ui.tab === "cards" ? "Add card" : ui.tab === "money" ? "Add entry" : ui.tab === "crypto" ? "Add crypto" : "Add to plan");
+    ["cards", "money", "crypto", "plan"].forEach(function (t) { $("tab-" + t).setAttribute("aria-selected", String(ui.tab === t)); });
     var banner = hasSample() ? '<div class="banner"><span>You’re looking at example data.</span><button data-act="clear-sample">Remove examples</button></div>' : backupBanner();
     if (ui.tab === "money") banner += reportBanner();
     if (ui.tab === "cards") $("view").innerHTML = banner + renderCardsShell();
     else if (ui.tab === "money") $("view").innerHTML = banner + renderMoneyShell();
+    else if (ui.tab === "crypto") { $("view").innerHTML = banner + renderCrypto(); refreshCrypto(false); }
     else $("view").innerHTML = banner + renderPlan();
     if (ui.tab === "cards" && $("cardsBody")) $("cardsBody").innerHTML = renderCardsBody();
     if (ui.tab === "money" && $("moneyBody")) $("moneyBody").innerHTML = renderMoneyBody();
@@ -949,6 +681,101 @@ button { cursor: pointer; }
     var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
     var r = new FileReader(); r.onload = function () { importDone(importText(r.result)); }; r.readAsText(f);
   });
+
+  // ---------- crypto (view-only: no private keys, ever) ----------
+  var COINS = [
+    ["bitcoin", "BTC", "Bitcoin", "#F7931A"], ["ethereum", "ETH", "Ethereum", "#627EEA"], ["solana", "SOL", "Solana", "#9945FF"],
+    ["tether", "USDT", "Tether", "#26A17B"], ["usd-coin", "USDC", "USD Coin", "#2775CA"], ["ripple", "XRP", "XRP", "#23292F"],
+    ["binancecoin", "BNB", "BNB", "#F3BA2F"], ["dogecoin", "DOGE", "Dogecoin", "#C2A633"], ["cardano", "ADA", "Cardano", "#0033AD"],
+    ["litecoin", "LTC", "Litecoin", "#345D9D"], ["tron", "TRX", "TRON", "#EF0027"], ["avalanche-2", "AVAX", "Avalanche", "#E84142"]
+  ];
+  var WATCHABLE = { bitcoin: /^(bc1[a-z0-9]{20,90}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/, ethereum: /^0x[a-fA-F0-9]{40}$/ };
+  var prices = { at: 0, cur: "", data: {} }, priceBusy = false, priceErr = false;
+  try { prices = JSON.parse(localStorage.getItem("wallet.prices") || "null") || prices; } catch (e) {}
+  function coin(id) { for (var i = 0; i < COINS.length; i++) if (COINS[i][0] === id) return COINS[i]; return [id, id.toUpperCase(), id, "#6B7280"]; }
+  function looksLikeSeed(v) { var w = String(v || "").trim().toLowerCase().split(/\s+/); return w.length >= 12 && w.every(function (x) { return /^[a-z]{3,8}$/.test(x); }); }
+  function fmtCoin(n) { return (+n || 0).toLocaleString(undefined, { maximumFractionDigits: n < 1 ? 8 : 6 }); }
+  function priceOf(id) { var d = prices.cur === state.currency.toLowerCase() && prices.data[id]; return d ? d : null; }
+  function holdingValue(h) { var pr = priceOf(h.coin); return pr ? Math.round(h.amount * pr.p * 100) : null; }
+  function cryptoTotal() { var t = 0, known = true; (state.crypto || []).forEach(function (h) { var v = holdingValue(h); if (v == null) known = false; else t += v; }); return { total: t, known: known }; }
+  function refreshCrypto(force) {
+    if (!state.crypto.length || priceBusy || IS_NATIVE && !navigator.onLine) return;
+    var cur = state.currency.toLowerCase(), fresh = prices.cur === cur && Date.now() - prices.at < 120000;
+    var watch = state.crypto.filter(function (h) { return h.address && (force || !h.checked || Date.now() - h.checked > 600000); });
+    if (fresh && !force && !watch.length) return;
+    priceBusy = true; priceErr = false;
+    var ids = state.crypto.map(function (h) { return h.coin; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).join(",");
+    var jobs = [];
+    if (!fresh || force) jobs.push(fetch("https://api.coingecko.com/api/v3/simple/price?ids=" + encodeURIComponent(ids) + "&vs_currencies=" + cur + "&include_24hr_change=true", { referrerPolicy: "no-referrer" })
+      .then(function (r) { if (!r.ok) throw new Error("price"); return r.json(); }).then(function (j) {
+        var d = {}; Object.keys(j).forEach(function (k) { if (j[k] && typeof j[k][cur] === "number") d[k] = { p: j[k][cur], c: j[k][cur + "_24h_change"] }; });
+        prices = { at: Date.now(), cur: cur, data: d }; try { localStorage.setItem("wallet.prices", JSON.stringify(prices)); } catch (e) {}
+      }));
+    watch.forEach(function (h) { jobs.push(fetchBalance(h).then(function (amt) { if (amt != null) { h.amount = amt; h.checked = Date.now(); } })); });
+    Promise.all(jobs.map(function (j) { return j.catch(function () { priceErr = true; }); })).then(function () {
+      priceBusy = false; if (watch.length) save(true);
+      if (ui.tab === "crypto" && !locked) $("view").innerHTML = (hasSample() ? '<div class="banner"><span>You’re looking at example data.</span><button data-act="clear-sample">Remove examples</button></div>' : backupBanner()) + renderCrypto();
+    });
+  }
+  function fetchBalance(h) {
+    if (h.coin === "bitcoin") return fetch("https://mempool.space/api/address/" + encodeURIComponent(h.address), { referrerPolicy: "no-referrer" }).then(function (r) { if (!r.ok) throw new Error("btc"); return r.json(); }).then(function (j) {
+      var c = j.chain_stats || {}, m = j.mempool_stats || {};
+      return ((c.funded_txo_sum || 0) - (c.spent_txo_sum || 0) + (m.funded_txo_sum || 0) - (m.spent_txo_sum || 0)) / 1e8;
+    });
+    if (h.coin === "ethereum") return fetch("https://ethereum-rpc.publicnode.com", { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [h.address, "latest"] }) }).then(function (r) { if (!r.ok) throw new Error("eth"); return r.json(); }).then(function (j) {
+      if (!j || typeof j.result !== "string") throw new Error("eth");
+      var wei = BigInt(j.result), whole = wei / 1000000000000000000n, frac = wei % 1000000000000000000n;
+      return Number(whole) + Number(frac / 1000000000n) / 1e9;
+    });
+    return Promise.resolve(null);
+  }
+  function renderCrypto() {
+    var list = state.crypto || [];
+    if (!list.length) {
+      return '<div class="empty"><div class="ic" style="width:64px;height:64px;border-radius:20px;background:#F7931A;font-size:28px">₿</div><h3>Track your crypto</h3>' +
+        "<p>Add Bitcoin, Ethereum and more to see what they’re worth with live prices. View only: the app never asks for your keys or recovery phrase.</p>" +
+        '<div class="row" style="width:100%;max-width:360px"><button class="btn" data-act="add-crypto">Add crypto</button><button class="btn alt" data-act="sample">Show examples</button></div></div>';
+    }
+    var tot = cryptoTotal(), cash = totalBalance(), chg = 0, base = 0;
+    list.forEach(function (h) { var pr = priceOf(h.coin), v = holdingValue(h); if (pr && v != null && typeof pr.c === "number") { base += v / (1 + pr.c / 100); chg += v; } });
+    var pct = base ? (chg - base) / base * 100 : null;
+    var when = prices.at && prices.cur === state.currency.toLowerCase() ? new Date(prices.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "";
+    var h = '<div class="stackv"><div class="panel balance"><div class="label">Crypto value</div><div class="amt num">' + (tot.known || tot.total ? money(tot.total) : "—") + "</div>" +
+      '<div class="sub">' + (pct != null ? '<span class="' + (pct >= 0 ? "pos" : "neg") + '">' + (pct >= 0 ? "▲ " : "▼ ") + Math.abs(pct).toFixed(2) + "%</span> in 24 hours · " : "") +
+      (priceBusy ? "Updating prices…" : priceErr ? "Couldn’t update prices" + (when ? " · from " + when : "") : when ? "Prices from " + when : "No prices yet") + "</div>" +
+      '<div class="sub">With your money: <b class="num" style="color:var(--ink)">' + money(cash + tot.total) + "</b></div>" +
+      '<button class="btn alt sm" data-act="crypto-refresh" style="margin-top:12px">↻ Refresh</button></div>';
+    h += '<div class="txlist">' + list.map(function (x) {
+      var c = coin(x.coin), pr = priceOf(x.coin), v = holdingValue(x);
+      return '<div class="swipe"><button class="tx" data-act="edit-crypto" data-id="' + esc(x.id) + '"><span class="ic" style="background:' + c[3] + ';font-size:12px">' + esc(c[1]) + '</span><span class="t"><b>' + esc(x.label || c[2]) +
+        "</b><small>" + esc(fmtCoin(x.amount) + " " + c[1]) + (x.address ? " · watching address" : "") + (pr ? " · " + money(Math.round(pr.p * 100)) : "") + '</small></span><span class="a num" style="text-align:right">' +
+        (v != null ? money(v) : "—") + (pr && typeof pr.c === "number" ? '<small class="' + (pr.c >= 0 ? "pos" : "neg") + '" style="display:block;font-size:11px;font-weight:600">' + (pr.c >= 0 ? "+" : "") + pr.c.toFixed(1) + "%</small>" : "") + "</span></button></div>";
+    }).join("") + "</div>";
+    h += '<p class="hint">View only. Never type your recovery phrase or private key into this app or any website. Prices: CoinGecko.</p>';
+    return h + "</div>";
+  }
+  function cryptoForm(x) {
+    var isNew = !x; x = x || { coin: "bitcoin", amount: 0, address: "", label: "" };
+    var mode = x.address ? "address" : "amount";
+    openSheet(shead(isNew ? "Add crypto" : "Edit " + coin(x.coin)[2]) +
+      '<div class="field"><span>Coin</span>' + chipGroup("f-coin", COINS.map(function (c) { return [c[0], c[1]]; }), x.coin) + "</div>" +
+      '<div class="seg" id="f-cmode"><button type="button" data-v="amount" aria-pressed="' + (mode === "amount") + '">Enter amount</button><button type="button" data-v="address" aria-pressed="' + (mode === "address") + '">Watch an address</button></div>' +
+      '<label class="field" id="w-camt"><span>How much do you have?</span><input class="input big num" id="f-camt" inputmode="decimal" placeholder="e.g. 0.05" value="' + (x.amount && !x.address ? String(x.amount) : "") + '"></label>' +
+      '<div class="field" id="w-caddr"><span>Public address (Bitcoin or Ethereum only)</span><input class="input" id="f-caddr" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="bc1… or 0x…" value="' + esc(x.address || "") + '">' +
+      '<p class="hint" style="text-align:left">The balance is looked up on public block explorers (mempool.space, publicnode.com), so they can see which address you checked. Your keys are never needed.</p></div>' +
+      '<label class="field"><span>Label (optional)</span><input class="input" id="f-clabel" maxlength="30" placeholder="e.g. Hardware wallet, Coinbase" value="' + esc(x.label || "") + '"></label>' +
+      '<div class="banner" style="border-style:solid;border-color:var(--warn);margin:0"><span>🔒 Never enter your <b style="color:var(--ink)">recovery phrase</b> (the 12 or 24 words) or private key here, or anywhere online.</span></div>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="save-crypto">' + (isNew ? "Add" : "Save changes") + "</button>" +
+      (isNew ? "" : '<button class="btn danger" data-act="del-crypto" data-id="' + esc(x.id) + '">Remove</button>'), { kind: "cryptoform", id: isNew ? null : x.id, cmode: mode, coin: x.coin });
+    cmodeChanged();
+  }
+  function cmodeChanged() {
+    var canWatch = !!WATCHABLE[sheetCtx.coin];
+    if (!canWatch && sheetCtx.cmode === "address") { sheetCtx.cmode = "amount"; $("f-cmode").querySelectorAll("button").forEach(function (b2) { b2.setAttribute("aria-pressed", String(b2.dataset.v === "amount")); }); }
+    $("f-cmode").hidden = !canWatch;
+    $("w-camt").hidden = sheetCtx.cmode !== "amount"; $("w-caddr").hidden = sheetCtx.cmode !== "address";
+  }
 
   // ---------- calendar (bills) ----------
   function icsText() {
@@ -1390,6 +1217,10 @@ button { cursor: pointer; }
       var movie = state.tx.filter(function (t) { return t.sample && t.note === "Movie night"; })[0];
       state.ious = [{ id: uid(), sample: true, person: "Sam", amount: 900, dir: "them", note: "Movie night", date: movie ? movie.date : ymd(new Date()), txId: movie ? movie.id : null, settled: false }];
     }
+    if (!state.crypto.length) state.crypto = [
+      { id: uid(), sample: true, coin: "bitcoin", amount: 0.025, label: "Savings" },
+      { id: uid(), sample: true, coin: "ethereum", amount: 0.4, label: "" }
+    ];
     if (!state.goals.length) state.goals = [
       { id: uid(), sample: true, name: "New phone", target: 100000, saved: 40000 },
       { id: uid(), sample: true, name: "Summer trip", target: 150000, saved: 22500 }
@@ -1421,9 +1252,18 @@ button { cursor: pointer; }
     document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
     toast(okMsg);
   }
+  function backupBlob() {
+    var plain = JSON.stringify(Object.assign({ app: "wallet", version: 3 }, state));
+    if (!encOn() || !dataKey) return Promise.resolve(plain);
+    return aesEnc(dataKey, te.encode(plain)).then(function (box) {
+      return JSON.stringify({ app: "wallet", version: 3, encrypted: true, kdf: { salt: lockCfg.salt, iterations: lockCfg.iter || KDF_ITER }, keyWrap: lockCfg.pinWrap, data: box });
+    });
+  }
   function backup() {
-    shareOrDownload(new File([JSON.stringify(Object.assign({ app: "wallet", version: 2 }, state))], "wallet-backup-" + ymd(new Date()) + ".json", { type: "application/json" }), "Backup saved", function () {
+    backupBlob().then(function (txt) {
+    shareOrDownload(new File([txt], "wallet-backup-" + ymd(new Date()) + ".json", { type: "application/json" }), encOn() ? "Encrypted backup saved" : "Backup saved", function () {
       state.lastBackup = Date.now(); delete state.snoozeBackup; save(true); if (sheetCtx && sheetCtx.kind === "menu") showMenu(); else render();
+    });
     });
   }
   function exportCsv() {
@@ -1452,21 +1292,21 @@ button { cursor: pointer; }
     var svg = document.querySelector(".sheet .qr svg"); if (svg) { svg.style.width = "100%"; svg.style.height = "100%"; }
   }
   function showMenu() {
-    var lockLine = lockCfg ? (lockCfg.credId ? "Face ID lock is on" : "PIN lock is on") : "Lock is off";
+    var lockLine = !lockCfg ? "Off: your data isn’t encrypted" : lockCfg.v === 2 ? (lockCfg.prfWrap ? "On · encrypted · Face ID or passcode" : "On · encrypted · passcode") : "On (unlock with your passcode once to encrypt)";
     openSheet(shead("Settings") +
       '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="setrow"><div><b>Lock</b><div class="sub" style="margin:0">' + lockLine + "</div></div>" +
       (lockCfg ? '<button class="btn danger sm" data-act="lock-off">Turn off</button>' : '<button class="btn sm" data-act="lock-setup">Turn on</button>') + "</div>" +
-      (lockCfg ? '<button class="link" data-act="lock-now" style="margin-top:8px">Lock now</button>' : "") + "</div>" +
+      (lockCfg ? '<div style="display:flex;gap:18px;margin-top:8px"><button class="link" data-act="lock-now">Lock now</button>' + (lockCfg.v === 2 ? '<button class="link" data-act="lock-change">Change passcode</button>' : "") + "</div>" : "") + "</div>" +
       '<button class="btn alt" data-act="undo"' + (undoStack.length ? "" : " disabled style=\"opacity:.5\"") + '>↶ Undo last change' + (undoStack.length ? " (" + undoStack.length + " available)" : "") + "</button>" +
       '<button class="btn" data-act="share-app-sheet">📤 Share this app with friends</button>' +
-      '<div class="field"><span>When the app opens</span>' + chipGroup("f-open", [["cards", "Cards"], ["money", "Money"], ["plan", "Plan"], ["add", "Add an entry"]], state.openTo || "cards") + "</div>" +
+      '<div class="field"><span>When the app opens</span>' + chipGroup("f-open", [["cards", "Cards"], ["money", "Money"], ["crypto", "Crypto"], ["plan", "Plan"], ["add", "Add an entry"]], state.openTo || "cards") + "</div>" +
       '<button class="btn alt" data-act="cats">Categories</button>' +
       '<div class="field"><span>Your data</span><p style="margin:0;color:var(--muted)">Saved on this phone only. Back up now and then, so you can get it back on a new phone or if you delete the app.' + (state.lastBackup ? " Last backup: " + esc(new Date(state.lastBackup).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })) + "." : " You haven’t backed up yet.") + '</p></div>' +
       '<p style="margin:0;font-size:14px" class="num">' + state.cards.length + " cards · " + state.tx.length + " entries · " + state.bills.length + " bills · " + state.goals.length + " goals</p>" +
       '<button class="btn" data-act="backup">Back up (save to Files)</button>' +
       '<button class="btn alt" data-act="restore">Restore from a backup</button>' +
       '<button class="btn alt" data-act="export">Export spreadsheet (CSV)</button>' +
-      '<p class="hint">The spreadsheet opens in Numbers, Excel or Google Sheets. Restoring replaces what’s in the app now.</p>', { kind: "menu" });
+      '<p class="hint">' + (encOn() ? "Backups are encrypted with your passcode. The spreadsheet is not encrypted, so keep it private. " : "") + "The spreadsheet opens in Numbers, Excel or Google Sheets. Restoring replaces what’s in the app now.</p>", { kind: "menu" });
   }
   $("restoreFile").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -1474,6 +1314,7 @@ button { cursor: pointer; }
     r.onload = function () {
       try {
         var d = JSON.parse(r.result);
+        if (d && d.encrypted && d.data && d.keyWrap && d.kdf) { restoreEncrypted(d); return; }
         if (!d || (!Array.isArray(d.cards) && !Array.isArray(d.tx))) throw new Error("bad");
         state = normalize(d); closeSheet(); commit(); toast("Backup restored");
       } catch (err) { toast("That file isn’t a Wallet backup"); }
@@ -1481,62 +1322,127 @@ button { cursor: pointer; }
     r.readAsText(f);
   });
 
-  // ---------- lock (Face ID via passkey, with a backup PIN) ----------
+  function restoreEncrypted(d) {
+    openSheet(shead("Unlock this backup") +
+      '<p style="margin:0;color:var(--muted)">This backup is encrypted. Enter the passcode you were using when you made it.</p>' +
+      '<label class="field"><span>Passcode</span><input class="input" id="f-bpin" type="password" autocomplete="off" autocapitalize="off"></label>' +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="restore-enc">Restore</button>', { kind: "restoreenc", backup: d });
+  }
+
+  // ---------- lock: Face ID (passkey) and passcode, with the data encrypted ----------
+  var KDF_ITER = 310000, dataKey = null, dataKeyRaw = null, started = false;
+  var te = new TextEncoder(), td = new TextDecoder();
+  function pinKey(pin, salt, iter) {
+    return crypto.subtle.importKey("raw", te.encode(pin), "PBKDF2", false, ["deriveKey"]).then(function (k) {
+      return crypto.subtle.deriveKey({ name: "PBKDF2", salt: unb64u(salt), iterations: iter || KDF_ITER, hash: "SHA-256" }, k, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    });
+  }
+  function rawKey(raw) { return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]); }
+  function aesEnc(key, bytes) { var iv = rand(12); return crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, bytes).then(function (ct) { return { iv: b64u(iv), ct: b64u(ct) }; }); }
+  function aesDec(key, box) { return crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64u(box.iv) }, key, unb64u(box.ct)); }
+  function useRaw(raw) { dataKeyRaw = new Uint8Array(raw); return rawKey(dataKeyRaw).then(function (k) { dataKey = k; }); }
+  function unwrapWithPin(pin, salt, wrap, iter) { return pinKey(pin, salt, iter).then(function (k) { return aesDec(k, wrap); }); }
   function rand(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
   function b64u(buf) { var s = "", b = new Uint8Array(buf); for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
   function unb64u(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var bin = atob(s), a = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; }
-  function hashPin(pin, salt) {
-    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)).then(function (h) { return b64u(h); });
+  function hashPin(pin, salt) { // old (unencrypted) lock, kept so it can be upgraded
+    return crypto.subtle.digest("SHA-256", te.encode(salt + ":" + pin)).then(function (h) { return b64u(h); });
   }
   function faceAvailable() {
-    if (IS_NATIVE) return Promise.resolve(false); // passkeys need a signed web domain; the installed app uses the PIN lock
+    if (IS_NATIVE) return Promise.resolve(false); // passkeys need a signed web domain; the installed app uses the passcode
     try {
       if (!window.PublicKeyCredential || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) return Promise.resolve(false);
       return PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; });
     } catch (e) { return Promise.resolve(false); }
   }
+  function pinFields(lbl) {
+    return '<label class="field"><span>' + (lbl || "Passcode") + '</span><input class="input" id="f-pin" type="password" autocomplete="new-password" autocapitalize="off" maxlength="64"></label>' +
+      '<label class="field"><span>Type it again</span><input class="input" id="f-pin2" type="password" autocomplete="new-password" autocapitalize="off" maxlength="64"></label>' +
+      '<p class="hint" style="text-align:left">At least 6 characters. Mixing in letters makes it much harder to crack. <b>If you forget it, your data can’t be recovered</b>, not even from a backup.</p>';
+  }
   function lockSetup() {
-    openSheet(shead("Turn on lock") +
-      '<p style="margin:0;color:var(--muted)">The app will ask for Face ID when you open it. Choose a backup PIN too, in case Face ID doesn’t work.</p>' +
-      '<label class="field"><span>Backup PIN (4–8 digits)</span><input class="input num" id="f-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>' +
-      '<label class="field"><span>Type the PIN again</span><input class="input num" id="f-pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>' +
-      '<p class="err" id="f-err"></p><button class="btn" data-act="lock-face" id="lockFaceBtn">Turn on Face ID lock</button><button class="btn alt" data-act="lock-pin">Use PIN only</button>' +
+    openSheet(shead("Lock & encrypt") +
+      '<p style="margin:0;color:var(--muted)">Everything in the app is scrambled with your passcode, so nobody can read it without unlocking. Face ID can unlock it too, where your iPhone supports it.</p>' +
+      pinFields("Choose a passcode") +
+      '<p class="err" id="f-err"></p><button class="btn" data-act="lock-face" id="lockFaceBtn">Turn on with Face ID + passcode</button><button class="btn alt" data-act="lock-pin">Passcode only</button>' +
       '<p class="hint">Your iPhone may ask to save a passkey called “Wallet”. Tap Continue: that’s how Face ID is linked to this app.</p>', { kind: "locksetup" });
-    faceAvailable().then(function (ok) { var b = $("lockFaceBtn"); if (b && !ok) { b.hidden = true; } });
+    faceAvailable().then(function (ok) { var b2 = $("lockFaceBtn"); if (b2 && !ok) b2.hidden = true; });
   }
   function readPins() {
     var p = $("f-pin").value, p2 = $("f-pin2").value;
-    if (!/^\d{4,8}$/.test(p)) { $("f-err").textContent = "Choose a PIN of 4 to 8 digits."; return null; }
-    if (p !== p2) { $("f-err").textContent = "The two PINs don’t match."; return null; }
+    if (p.length < 6) { $("f-err").textContent = "Use at least 6 characters."; return null; }
+    if (/^(\d)\1+$/.test(p) || p === "123456" || p === "654321") { $("f-err").textContent = "That passcode is too easy to guess."; return null; }
+    if (p !== p2) { $("f-err").textContent = "The two passcodes don’t match."; return null; }
     return p;
   }
-  function finishLock(pin, credId) {
-    var salt = b64u(rand(16));
-    return hashPin(pin, salt).then(function (h) {
-      lockCfg = { pinHash: h, salt: salt, credId: credId || null }; saveLock(); closeSheet(); toast(credId ? "Face ID lock is on" : "PIN lock is on");
-    });
-  }
-  function createPasskey() {
+  // Face ID: a passkey with the PRF extension gives a secret only Face ID can unlock
+  function createPasskey(prfSalt) {
     return navigator.credentials.create({ publicKey: {
       challenge: rand(32), rp: { name: "Wallet" }, user: { id: rand(16), name: "Wallet", displayName: "Wallet" },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" },
-      timeout: 60000, attestation: "none" } }).then(function (cred) { return b64u(cred.rawId); });
+      timeout: 60000, attestation: "none", extensions: { prf: { eval: { first: prfSalt } } } } }).then(function (cred) {
+      var ext = (cred.getClientExtensionResults && cred.getClientExtensionResults()) || {}, prf = ext.prf || {};
+      return { id: b64u(cred.rawId), enabled: !!prf.enabled || !!(prf.results && prf.results.first), out: prf.results && prf.results.first ? new Uint8Array(prf.results.first) : null };
+    });
+  }
+  function faceSecret(credId, prfSalt) {
+    return navigator.credentials.get({ publicKey: { challenge: rand(32), allowCredentials: [{ type: "public-key", id: unb64u(credId) }], userVerification: "required", timeout: 60000,
+      extensions: { prf: { eval: { first: unb64u(prfSalt) } } } } }).then(function (a) {
+      var ext = (a.getClientExtensionResults && a.getClientExtensionResults()) || {};
+      if (!ext.prf || !ext.prf.results || !ext.prf.results.first) throw new Error("noprf");
+      return new Uint8Array(ext.prf.results.first);
+    });
+  }
+  // turn on encryption with a passcode (and optionally Face ID); the data key is random and wrapped by each
+  function enableLock(pin, face) {
+    var raw = dataKeyRaw || rand(32), salt = b64u(rand(16)), cfg = { v: 2, salt: salt, iter: KDF_ITER };
+    return pinKey(pin, salt).then(function (k) { return aesEnc(k, raw); }).then(function (w) {
+      cfg.pinWrap = w;
+      if (face && face.out) return rawKey(face.out).then(function (fk) { return aesEnc(fk, raw); }).then(function (fw) { cfg.credId = face.id; cfg.prfSalt = face.prfSalt; cfg.prfWrap = fw; });
+    }).then(function () { return useRaw(raw); }).then(function () {
+      lockCfg = cfg; saveLock(); save(true);
+      try { localStorage.removeItem(LS); localStorage.removeItem(OLD_LS); } catch (e) {} // no plain copies left behind
+      return saving;
+    });
   }
   function showLock() {
     $("lock").hidden = false; $("lockErr").textContent = ""; $("pinIn").value = "";
-    $("unlockFace").hidden = !(lockCfg && lockCfg.credId);
+    $("unlockFace").hidden = !(lockCfg && lockCfg.credId && (lockCfg.v !== 2 || lockCfg.prfWrap));
   }
-  function unlock() { locked = false; coverOnly = false; $("lock").hidden = true; postBillsAndRender(); }
+  function hardLock() {
+    locked = true; coverOnly = false; closeSheet(); showLock(); closeFullCode();
+    if (!encOn()) return;
+    saving.then(function () { if (!locked) return; dataKey = null; dataKeyRaw = null; state = blank(); undoStack = []; lastSaved = null; $("view").innerHTML = ""; });
+  }
+  function afterUnlock() {
+    return (encOn() ? openData() : Promise.resolve()).then(function () {
+      locked = false; coverOnly = false; $("lock").hidden = true;
+      if (!started) startApp(); else postBillsAndRender();
+    });
+  }
+  function lockFail(msg) { $("lockErr").textContent = msg; $("pinIn").value = ""; }
   $("unlockFace").addEventListener("click", function () {
     if (!lockCfg || !lockCfg.credId) return;
+    if (lockCfg.v === 2) {
+      faceSecret(lockCfg.credId, lockCfg.prfSalt).then(function (sec) { return rawKey(sec); }).then(function (fk) { return aesDec(fk, lockCfg.prfWrap); })
+        .then(useRaw).then(afterUnlock).catch(function () { lockFail("Face ID didn’t work. Try again or use your passcode."); });
+      return;
+    }
     navigator.credentials.get({ publicKey: { challenge: rand(32), allowCredentials: [{ type: "public-key", id: unb64u(lockCfg.credId) }], userVerification: "required", timeout: 60000 } })
-      .then(function (a) { if (a) unlock(); }, function () { $("lockErr").textContent = "Face ID didn’t work. Try again or use your PIN."; });
+      .then(function (a2) { if (a2) afterUnlock(); }, function () { lockFail("Face ID didn’t work. Try again or use your passcode."); });
   });
   $("pinForm").addEventListener("submit", function (e) {
-    e.preventDefault(); if (!lockCfg) return unlock();
-    hashPin($("pinIn").value, lockCfg.salt).then(function (h) {
-      if (h === lockCfg.pinHash) unlock(); else { $("lockErr").textContent = "That PIN isn’t right."; $("pinIn").value = ""; }
+    e.preventDefault(); if (!lockCfg) { afterUnlock(); return; }
+    var pin = $("pinIn").value; $("lockErr").textContent = "Unlocking…";
+    if (lockCfg.v === 2) {
+      unwrapWithPin(pin, lockCfg.salt, lockCfg.pinWrap, lockCfg.iter).then(useRaw).then(afterUnlock, function () { lockFail("That passcode isn’t right."); });
+      return;
+    }
+    // old lock (no encryption): check, then upgrade to encryption using this passcode
+    hashPin(pin, lockCfg.salt).then(function (h) {
+      if (h !== lockCfg.pinHash) { lockFail("That passcode isn’t right."); return; }
+      return afterUnlock().then(function () { return enableLock(pin, null); }).then(function () { toast("Your data is now encrypted"); });
     });
   });
   document.addEventListener("visibilitychange", function () {
@@ -1544,7 +1450,7 @@ button { cursor: pointer; }
     if (document.hidden) { if (!locked) { coverOnly = true; hiddenAt = Date.now(); showLock(); } }
     else if (coverOnly && !locked) {
       if (Date.now() - hiddenAt < 30000) { coverOnly = false; $("lock").hidden = true; postBillsAndRender(); }
-      else { locked = true; coverOnly = false; closeSheet(); }
+      else hardLock();
     }
   });
   function postBillsAndRender() { if (postBills()) save(true); render(); }
@@ -1553,7 +1459,7 @@ button { cursor: pointer; }
   document.addEventListener("click", function (e) {
     var tab = e.target.closest("[data-tab]");
     if (tab) { ui.tab = tab.dataset.tab; render(); window.scrollTo(0, 0); return; }
-    if (e.target.closest("#addBtn")) { ui.tab === "cards" ? cardForm() : ui.tab === "money" ? txForm() : planAdd(); return; }
+    if (e.target.closest("#addBtn")) { ui.tab === "cards" ? cardForm() : ui.tab === "money" ? txForm() : ui.tab === "crypto" ? cryptoForm() : planAdd(); return; }
     if (e.target.closest("#menuBtn")) { showMenu(); return; }
     if (e.target === $("scrim")) { closeSheet(); return; }
     var del = e.target.closest('[data-act="photo-del"]');
@@ -1569,6 +1475,8 @@ button { cursor: pointer; }
       if (gid === "f-dir") sheetCtx.dir = seg.dataset.v;
       if (gid === "f-open") { state.openTo = seg.dataset.v; save(true); toast("Saved"); }
       if (gid === "f-catcolor") sheetCtx.color = seg.dataset.v;
+      if (gid === "f-coin") { sheetCtx.coin = seg.dataset.v; cmodeChanged(); }
+      if (gid === "f-cmode") { sheetCtx.cmode = seg.dataset.v; cmodeChanged(); }
       if (gid === "f-cat") sheetCtx.cat = seg.dataset.v;
       if (gid === "f-pay") {
         sheetCtx.pay = seg.dataset.v;
@@ -1586,7 +1494,7 @@ button { cursor: pointer; }
       case "clear-sample":
         var nf = function (x) { return !x.sample; };
         state.cards = state.cards.filter(nf); state.tx = state.tx.filter(nf); state.bills = state.bills.filter(nf); state.goals = state.goals.filter(nf);
-        state.accounts = state.accounts.filter(nf); state.ious = state.ious.filter(nf);
+        state.accounts = state.accounts.filter(nf); state.ious = state.ious.filter(nf); state.crypto = state.crypto.filter(nf);
         if (state.sampleBudgets) { state.budgets = {}; delete state.sampleBudgets; }
         commit(); toast("Examples removed"); break;
       case "close": closeSheet(); break;
@@ -1686,6 +1594,27 @@ button { cursor: pointer; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
       case "undo": undo(); break;
+      case "add-crypto": cryptoForm(); break;
+      case "edit-crypto": cryptoForm(byId(state.crypto, id)); break;
+      case "crypto-refresh": refreshCrypto(true); render(); break;
+      case "save-crypto":
+        var cl = $("f-clabel").value.trim(), cav = $("f-camt").value, cad = $("f-caddr").value.trim();
+        if ([cl, cav, cad].some(looksLikeSeed)) { $("f-err").textContent = "That looks like a recovery phrase. Never type it into any app. If someone asked you for it, it’s a scam."; $("f-camt").value = ""; $("f-caddr").value = ""; $("f-clabel").value = ""; return; }
+        var ch = { coin: sheetCtx.coin, label: cl, address: "", amount: 0 };
+        if (sheetCtx.cmode === "address") {
+          if (!WATCHABLE[ch.coin].test(cad)) { $("f-err").textContent = "That doesn’t look like a valid " + coin(ch.coin)[2] + " address. It should start with " + (ch.coin === "bitcoin" ? "bc1, 1 or 3." : "0x."); return; }
+          ch.address = cad;
+        } else {
+          var ca = parseFloat(String(cav).replace(",", "."));
+          if (!(ca > 0)) { $("f-err").textContent = "Enter how much you have, like 0.05."; return; }
+          ch.amount = ca;
+        }
+        if (sheetCtx.id) { var eh = byId(state.crypto, sheetCtx.id); if (eh) { if (eh.address !== ch.address) delete eh.checked; Object.assign(eh, ch); delete eh.sample; } }
+        else { ch.id = uid(); state.crypto.push(ch); }
+        var ce = !!sheetCtx.id; closeSheet(); ui.tab = "crypto"; commit(); refreshCrypto(true); toast(ce ? "Saved" : "Added"); break;
+      case "del-crypto":
+        if (!armDelete(el, "Tap again to remove")) return;
+        state.crypto = state.crypto.filter(function (x) { return x.id !== id; }); closeSheet(); commit(); toast("Removed"); break;
       case "subs": subsPicker(); break;
       case "sub-pick":
         var pi = +el.dataset.i, at = sheetCtx.picked.indexOf(pi);
@@ -1816,16 +1745,46 @@ button { cursor: pointer; }
       case "restore": $("restoreFile").click(); break;
       case "export": exportCsv(); break;
       case "lock-setup": lockSetup(); break;
-      case "lock-pin": var p1 = readPins(); if (p1) finishLock(p1, null); break;
+      case "lock-pin":
+        var p1 = readPins(); if (!p1) return;
+        $("f-err").textContent = "Encrypting…";
+        enableLock(p1, null).then(function () { closeSheet(); toast("Locked & encrypted with your passcode"); }, function () { $("f-err").textContent = "Couldn’t turn on encryption on this device."; });
+        break;
       case "lock-face":
         var p2 = readPins(); if (!p2) return;
-        createPasskey().then(function (cid) { return finishLock(p2, cid); }, function () {
-          if ($("f-err")) $("f-err").textContent = "Face ID setup didn’t finish. Try again, or tap “Use PIN only”.";
-        }); break;
+        var ps = rand(32);
+        createPasskey(ps).then(function (face) {
+          face.prfSalt = b64u(ps);
+          if (face.out) return face;
+          if (face.enabled) return faceSecret(face.id, face.prfSalt).then(function (out) { face.out = out; return face; }, function () { return face; });
+          return face;
+        }).then(function (face) {
+          $("f-err").textContent = "Encrypting…";
+          return enableLock(p2, face.out ? face : null).then(function () {
+            closeSheet(); toast(face.out ? "Face ID lock & encryption are on" : "Encrypted with your passcode (Face ID can’t unlock encrypted data on this phone)");
+          });
+        }, function () { if ($("f-err")) $("f-err").textContent = "Face ID setup didn’t finish. Try again, or tap “Passcode only”."; });
+        break;
       case "lock-off":
         if (!armDelete(el, "Tap again to turn off")) return;
-        lockCfg = null; saveLock(); closeSheet(); toast("Lock turned off"); break;
-      case "lock-now": closeSheet(); locked = true; showLock(); break;
+        lockCfg = null; saveLock(); save(true); dataKey = null; dataKeyRaw = null; closeSheet(); toast("Lock off. Your data is no longer encrypted."); break;
+      case "lock-now": hardLock(); break;
+      case "lock-change":
+        openSheet(shead("Change passcode") + pinFields("New passcode") + '<p class="err" id="f-err"></p><button class="btn" data-act="lock-change-save">Save new passcode</button>' +
+          '<p class="hint">Backups you made before keep the old passcode.</p>', { kind: "lockchange" }); break;
+      case "lock-change-save":
+        var np = readPins(); if (!np || !dataKeyRaw) return;
+        var ns = b64u(rand(16));
+        pinKey(np, ns).then(function (k) { return aesEnc(k, dataKeyRaw); }).then(function (w) {
+          lockCfg.salt = ns; lockCfg.iter = KDF_ITER; lockCfg.pinWrap = w; saveLock(); closeSheet(); toast("Passcode changed");
+        }); break;
+      case "restore-enc":
+        var bd = sheetCtx.backup, bp = $("f-bpin").value; $("f-err").textContent = "Unlocking…";
+        unwrapWithPin(bp, bd.kdf.salt, bd.keyWrap, bd.kdf.iterations).then(function (raw) { return rawKey(new Uint8Array(raw)); })
+          .then(function (k) { return aesDec(k, bd.data); }).then(function (buf) {
+            var d = JSON.parse(td.decode(buf)); state = normalize(d); closeSheet(); commit(); toast("Backup restored");
+          }, function () { $("f-err").textContent = "That passcode doesn’t unlock this backup."; });
+        break;
     }
   });
   // swipe left on an entry to show Delete; a long swipe deletes straight away
@@ -1890,8 +1849,8 @@ button { cursor: pointer; }
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sheetCtx) closeSheet(); });
 
   // ---------- start ----------
-  Promise.all([load(), loadLock()]).then(function () {
-    if (lockCfg) { locked = true; showLock(); }
+  function startApp() {
+    started = true;
     postBills();
     var want = (location.search.match(/[?&]add=(entry|card)/) || [])[1] || (state.openTo === "add" ? "entry" : "");
     if (state.openTo && state.openTo !== "add") ui.tab = state.openTo;
@@ -1901,10 +1860,11 @@ button { cursor: pointer; }
     if (want) setTimeout(function () { want === "card" ? cardForm() : txForm(); }, 50);
     $("app").hidden = false; $("tabbar").hidden = false;
     save(true); // moves old data into the new storage
+  }
+  loadLock().then(load).then(function () {
+    if (lockCfg) { locked = true; showLock(); }
+    if (!encOn()) startApp(); // encrypted data opens after unlocking
   });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   if ("serviceWorker" in navigator && !IS_NATIVE) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 })();
-</script>
-</body>
-</html>
