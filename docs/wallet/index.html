@@ -200,6 +200,21 @@ button { cursor: pointer; }
 .gstep .gsee { font-size: 13px; color: var(--muted); line-height: 1.4; }
 .gstep.done { opacity: .6; } .gstep.done .gnum { background: var(--pos); }
 .mono { font-family: var(--f-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
+.fullcode { position: fixed; inset: 0; z-index: 95; background: #fff; color: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); }
+.fullcode .fc-name { font-family: var(--f-display); font-size: 22px; font-weight: 700; text-align: center; }
+.fullcode .fc-code { width: 100%; max-width: 640px; display: flex; justify-content: center; }
+.fullcode .fc-code.qr svg { width: min(80vw, 60vh); height: auto; }
+.fullcode .fc-num { font-family: var(--f-mono); font-size: 22px; letter-spacing: .1em; text-align: center; overflow-wrap: anywhere; }
+.fullcode .fc-hint { font-size: 13px; color: #666; text-align: center; }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-h { font-size: 11px; color: var(--muted); text-align: center; font-weight: 600; padding-bottom: 2px; }
+.cal-d { aspect-ratio: 1; border: 0; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--ink); background: var(--surface-2); position: relative; padding: 0; }
+.cal-d[style] { background: color-mix(in srgb, var(--neg) calc(var(--a) * 100%), var(--surface-2)); color: #fff; }
+.cal-d.zero { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pos) 55%, transparent); color: var(--pos); }
+.cal-d.future { opacity: .35; }
+.cal-d.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chips .rchip b { font-weight: 700; margin-left: 4px; }
 .photo.receipt { aspect-ratio: auto; height: 96px; width: 100%; }
 .toast { position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px); z-index: 60;
   transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
@@ -334,7 +349,7 @@ button { cursor: pointer; }
     var v = parseFloat(x); return isFinite(v) ? Math.round(v * 100) : 0;
   }
   function amtStr(c) { return c ? (c / 100).toFixed(2) : ""; }
-  function groupNo(n) { var s = String(n || "").replace(/\s+/g, ""); return s.length > 6 ? s.replace(/(.{4})(?=.)/g, "$1 ") : s; }
+  function groupNo(n) { var s = String(n || "").replace(/\s+/g, ""); return s.length > 6 && /^\d+$/.test(s) ? s.replace(/(.{4})(?=.)/g, "$1 ") : String(n || ""); }
   var undoStack = [], lastSaved = null, justChanged = false;
   function toast(msg) {
     var t = $("toast"), undo = justChanged && undoStack.length; justChanged = false;
@@ -362,6 +377,7 @@ button { cursor: pointer; }
     if (d.cats && okCats(d.cats.out) && okCats(d.cats.in)) b.cats = { out: d.cats.out, in: d.cats.in };
     if (!b.cats.in.some(function (c) { return c.name === "Paid back"; })) b.cats.in.splice(Math.max(0, b.cats.in.length - 1), 0, { name: "Paid back", color: "#3E9C8F" });
     b.imported = Array.isArray(d.imported) ? d.imported : [];
+    if (Array.isArray(d.dismissedSubs)) b.dismissedSubs = d.dismissedSubs;
     ["created", "lastBackup", "snoozeBackup", "reportSeen", "openTo"].forEach(function (k) { if (d[k] != null) b[k] = d[k]; });
     if (!b.created) b.created = Date.now();
     return b;
@@ -621,12 +637,13 @@ button { cursor: pointer; }
     var isNow = m >= monthKey(new Date());
     var h = '<div class="stackv">' +
       '<div class="panel balance"><div class="label">Balance</div><div class="amt num' + (bal < 0 ? " neg" : "") + '">' + money(bal) + '</div><div class="sub">' + (state.accounts.length ? "Across your accounts" : "All money in minus all money out") + " · " + all.length + " entr" + (all.length === 1 ? "y" : "ies") + "</div></div>" +
-      accountsPanel() +
+      (isNow ? safeToSpend() : "") + accountsPanel() +
       '<div class="month"><button data-act="month" data-d="-1" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
       "<h2>" + esc(monthName(m)) + '</h2><button data-act="month" data-d="1" aria-label="Next month"' + (isNow ? " disabled" : "") + '><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div>' +
       '<div class="duo"><div class="panel"><div class="label">Money in</div><div class="v num pos">' + money(inc, true) + '</div></div><div class="panel"><div class="label">Spent</div><div class="v num neg">' + money(-out) + "</div></div></div>" +
       '<div class="panel chart"><div class="label" style="margin-bottom:8px">Last 6 months</div>' + chartSvg(m) +
       '<div class="legend"><span><i style="background:var(--pos)"></i>Money in</span><span><i style="background:var(--neg)"></i>Spent</span></div></div>' +
+      spendCalendar(m) +
       '<button class="btn alt" data-act="report" data-m="' + m + '">📊 ' + esc(monthName(m, true)) + " report</button>";
     if (out > 0) {
       h += '<div class="panel"><div class="label">Spending by category</div><div class="bars">' +
@@ -639,6 +656,48 @@ button { cursor: pointer; }
     }
     h += list.length ? txRows(list) : '<div class="empty"><p>Nothing logged in ' + esc(monthName(m)) + ".</p></div>";
     return h + "</div>";
+  }
+
+  function safeToSpend() {
+    var now = new Date(), cur = monthKey(now), dim = daysIn(cur), left = dim - now.getDate() + 1;
+    var inc = 0, out = 0;
+    state.tx.forEach(function (t) { if (t.date.slice(0, 7) !== cur) return; if (t.type === "in") inc += t.amount; else if (t.type === "out") out += t.amount; });
+    var upcoming = 0;
+    state.bills.forEach(function (b) { var nd = billNext(b); if (nd.slice(0, 7) === cur && nd > ymd(now)) upcoming += b.amount; });
+    var bud = Object.keys(state.budgets).filter(function (c) { return state.budgets[c] > 0; }), pool, how;
+    if (bud.length) {
+      var spent = spentByCat(cur), lim = 0, used = 0;
+      bud.forEach(function (c) { lim += state.budgets[c]; used += spent[c] || 0; });
+      pool = lim - used; how = "within your budgets";
+    } else if (inc > 0) { pool = inc - out - upcoming; how = "from this month’s money in, after " + (upcoming ? money(upcoming) + " of bills still to come" : "spending"); }
+    else return "";
+    var per = Math.max(0, Math.floor(pool / left));
+    return '<div class="panel"><div class="label">Safe to spend today</div>' +
+      (pool >= 0 ? '<div class="num" style="font-family:var(--f-display);font-size:32px;font-weight:700;margin-top:2px">' + money(per) + "</div>" +
+        '<div class="sub">' + money(per) + " a day for the next " + left + " day" + (left === 1 ? "" : "s") + " (" + money(pool) + " left " + how + ")</div>"
+      : '<div class="num neg" style="font-family:var(--f-display);font-size:26px;font-weight:700;margin-top:2px">' + money(-pool) + ' over</div><div class="sub">You’ve gone past what’s left ' + how + " this month.</div>") + "</div>";
+  }
+
+  // ===== spending calendar =====
+  function spendCalendar(m) {
+    var dim = daysIn(m), first = parseYmd(m + "-01").getDay(), byDay = {}, max = 0, todayS = ymd(new Date()), isCur = m === monthKey(new Date());
+    state.tx.forEach(function (t) { if (t.type === "out" && t.date.slice(0, 7) === m) { byDay[t.date] = (byDay[t.date] || 0) + t.amount; } });
+    Object.keys(byDay).forEach(function (k) { if (byDay[k] > max) max = byDay[k]; });
+    var lastDay = isCur ? new Date().getDate() : dim, noSpend = 0, streak = 0, best = 0, run = 0;
+    for (var d = 1; d <= lastDay; d++) { var k = m + "-" + pad(d); if (!byDay[k]) { noSpend++; run++; best = Math.max(best, run); } else run = 0; }
+    streak = run;
+    var heads = [0, 1, 2, 3, 4, 5, 6].map(function (i) { return new Date(2023, 0, 1 + i).toLocaleDateString(undefined, { weekday: "narrow" }); });
+    var cells = "";
+    for (var e = 0; e < first; e++) cells += "<span></span>";
+    for (var d2 = 1; d2 <= dim; d2++) {
+      var key = m + "-" + pad(d2), v = byDay[key] || 0, future = isCur && key > todayS;
+      var a = v ? (0.18 + 0.82 * Math.sqrt(v / max)).toFixed(2) : 0;
+      cells += '<button class="cal-d' + (key === todayS ? " today" : "") + (future ? " future" : "") + (!v && !future ? " zero" : "") + '" data-act="cal-day" data-d="' + key + '"' +
+        (v ? ' style="--a:' + a + '"' : "") + ' aria-label="' + esc(shortDate(key)) + ": " + (v ? money(v) : "nothing spent") + '">' + d2 + "</button>";
+    }
+    return '<div class="panel"><div class="phead" style="margin-bottom:8px"><h3>Spending calendar</h3><span class="sub" style="margin:0">' + noSpend + " no-spend day" + (noSpend === 1 ? "" : "s") + "</span></div>" +
+      '<div class="cal">' + heads.map(function (h) { return '<span class="cal-h">' + esc(h) + "</span>"; }).join("") + cells + "</div>" +
+      '<div class="sub" style="margin-top:10px">' + (isCur ? (streak ? "🔥 " + streak + "-day no-spend streak right now" : "Spend nothing today to start a no-spend streak") + " · " : "") + "Best run: " + best + " day" + (best === 1 ? "" : "s") + "</div></div>";
   }
 
   function accountsPanel() {
@@ -907,6 +966,30 @@ button { cursor: pointer; }
     return L.join("\r\n") + "\r\n";
   }
 
+  function ordinal(n) { var s2 = ["th", "st", "nd", "rd"], v = n % 100; return s2[(v - 20) % 10] || s2[v] || s2[0]; }
+  function findSubscriptions() {
+    var groups = {}, billNames = state.bills.map(function (b) { return b.name.toLowerCase(); });
+    state.tx.forEach(function (t) {
+      if (t.type !== "out" || t.billId || !t.note) return;
+      var k = t.note.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim(); if (!k || billNames.indexOf(k) >= 0 || (state.dismissedSubs || []).indexOf(k) >= 0) return;
+      (groups[k] = groups[k] || []).push(t);
+    });
+    var out = [];
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k].slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+      if (g.length < 2) return;
+      var months = {}; g.forEach(function (t) { months[t.date.slice(0, 7)] = 1; });
+      if (Object.keys(months).length < 2) return;
+      var last = g[g.length - 1], prev = g[g.length - 2];
+      var gap = Math.round((parseYmd(last.date) - parseYmd(prev.date)) / 864e5);
+      if (gap < 25 || gap > 35) return;
+      if (Math.abs(last.amount - prev.amount) > Math.max(100, last.amount * 0.1)) return;
+      if (Math.round((today0() - parseYmd(last.date)) / 864e5) > 45) return;
+      out.push({ key: k, name: last.note, amount: last.amount, day: +last.date.slice(8, 10), cat: last.cat, pay: last.pay || "", n: g.length });
+    });
+    return out.slice(0, 3);
+  }
+
   function renderPlan() {
     var cur = monthKey(new Date()), spent = spentByCat(cur), cats = catNames("out").filter(function (c) { return state.budgets[c] > 0; });
     var h = '<div class="stackv">';
@@ -927,6 +1010,9 @@ button { cursor: pointer; }
     // bills
     var bills = state.bills.slice().sort(function (a, b) { return billNext(a) < billNext(b) ? -1 : 1; }), mTot = 0;
     h += '<div class="panel"><div class="phead"><h3>Bills &amp; subscriptions</h3><button class="link" data-act="add-bill">Add</button></div>';
+    findSubscriptions().forEach(function (f) {
+      h += '<div class="banner" style="border-style:solid;margin:0 0 12px"><span>Looks like a monthly charge: <b style="color:var(--ink)">' + esc(f.name) + "</b> " + money(f.amount) + ' around the ' + f.day + ordinal(f.day) + '.</span><span style="display:flex;gap:10px"><button data-act="sub-no" data-k="' + esc(f.key) + '" style="color:var(--muted)">No</button><button data-act="sub-add" data-k="' + esc(f.key) + '">Add as bill</button></span></div>';
+    });
     if (!bills.length) h += '<p class="sub" style="margin:0">Add rent, phone or streaming once. They’re logged in Money automatically on the day they’re due each month.</p>';
     else {
       h += '<div class="blist">' + bills.map(function (b) {
@@ -1003,21 +1089,35 @@ button { cursor: pointer; }
       '<button class="btn alt" data-act="edit-card" data-id="' + esc(c.id) + '">Edit</button></div>' +
       '<button class="btn danger" data-act="del-card" data-id="' + esc(c.id) + '">Delete card</button>', { kind: "card", id: id });
     var host = $("codeHost"); if (!host || bank) return;
+    drawCode(host, c, false);
+    host.parentElement.setAttribute("data-act", "code-full"); host.parentElement.setAttribute("data-id", c.id); host.parentElement.style.cursor = "pointer";
+    host.parentElement.insertAdjacentHTML("afterend", '<p class="hint">Tap the code to show it full screen.</p>');
+  }
+  function drawCode(host, c, big) {
     if (c.format === "qr") {
       try { var q = qrcode(0, "M"); q.addData(c.number); q.make(); host.innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); }
       catch (e) { host.textContent = "Couldn’t draw this QR code."; }
-    } else {
-      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); host.appendChild(svg);
-      var opts = { displayValue: false, height: 90, width: 2.2, margin: 4, background: "#ffffff", lineColor: "#111111" }, ok = false;
-      try { JsBarcode(svg, c.number.replace(/\s+/g, ""), Object.assign({ format: c.format === "ean13" ? "EAN13" : "CODE128", valid: function (v) { ok = v; } }, opts)); } catch (e) { ok = false; }
-      if (!ok) {
-        try { JsBarcode(svg, c.number, Object.assign({ format: "CODE128" }, opts)); ok = true; } catch (e2) {}
-        if (c.format === "ean13") host.insertAdjacentHTML("afterend", '<p class="hint" style="color:#8a2a22">This number isn’t a valid EAN-13, so it’s shown as a standard barcode.</p>');
-      }
-      if (!ok) host.textContent = "Couldn’t draw a barcode for this number.";
-      else { svg.removeAttribute("width"); svg.removeAttribute("height"); svg.style.width = "100%"; svg.style.maxHeight = "110px"; }
+      return;
     }
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); host.appendChild(svg);
+    var opts = { displayValue: false, height: big ? 160 : 90, width: 2.2, margin: 4, background: "#ffffff", lineColor: "#111111" }, ok = false;
+    try { JsBarcode(svg, c.number.replace(/\s+/g, ""), Object.assign({ format: c.format === "ean13" ? "EAN13" : "CODE128", valid: function (v) { ok = v; } }, opts)); } catch (e) { ok = false; }
+    if (!ok) {
+      try { JsBarcode(svg, c.number, Object.assign({ format: "CODE128" }, opts)); ok = true; } catch (e2) {}
+      if (c.format === "ean13" && !big) host.insertAdjacentHTML("afterend", '<p class="hint" style="color:#8a2a22">This number isn’t a valid EAN-13, so it’s shown as a standard barcode.</p>');
+    }
+    if (!ok) host.textContent = "Couldn’t draw a barcode for this number.";
+    else { svg.removeAttribute("width"); svg.removeAttribute("height"); svg.style.width = "100%"; svg.style.maxHeight = big ? "40vh" : "110px"; }
   }
+  var wakeLock = null;
+  function showFullCode(c) {
+    var o = document.createElement("div"); o.id = "fullcode"; o.className = "fullcode"; o.setAttribute("data-act", "code-close");
+    o.innerHTML = '<div class="fc-name"></div><div class="fc-code' + (c.format === "qr" ? " qr" : "") + '"></div><div class="fc-num"></div><div class="fc-hint">Turn your screen brightness all the way up. Tap anywhere to close.</div>';
+    o.querySelector(".fc-name").textContent = c.name; o.querySelector(".fc-num").textContent = groupNo(c.number);
+    document.body.appendChild(o); drawCode(o.querySelector(".fc-code"), c, true);
+    try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(function (w) { wakeLock = w; }, function () {}); } catch (e) {}
+  }
+  function closeFullCode() { var o = $("fullcode"); if (o) o.remove(); if (wakeLock) { try { wakeLock.release(); } catch (e) {} wakeLock = null; } }
 
   function cardForm(c) {
     var isNew = !c; c = c || { name: "", number: "", format: "code128", color: COLORS[state.cards.length % COLORS.length], note: "", balance: null };
@@ -1130,6 +1230,7 @@ button { cursor: pointer; }
     openSheet(shead(isNew ? "Add an entry" : t.type === "move" ? "Edit transfer" : "Edit entry") +
       '<div class="seg" id="f-type"><button type="button" data-v="out" aria-pressed="' + (t.type === "out") + '">Spent</button><button type="button" data-v="in" aria-pressed="' + (t.type === "in") + '">Money in</button>' +
       (canMove ? '<button type="button" data-v="move" aria-pressed="' + (t.type === "move") + '">Transfer</button>' : "") + "</div>" +
+      (isNew && !t.refundOf && !t.pay ? recentChips() : "") +
       '<label class="field"><span>Amount (' + esc(state.currency) + ')</span><input class="input big num" id="f-amount" inputmode="decimal" placeholder="0.00" value="' + amtStr(t.amount) + '"></label>' +
       '<div class="field" id="w-cat"><span>Category</span><div class="chips" id="f-cat"></div></div>' +
       '<div class="field" id="w-pay"><span>Paid with</span>' + chipGroup("f-pay", payOpts(), t.pay || "") + "</div>" +
@@ -1146,6 +1247,21 @@ button { cursor: pointer; }
     if (t.refundOf && isNew) $("f-err").insertAdjacentHTML("beforebegin", '<p class="hint" style="text-align:left">This adds the money back as a refund. Change the amount for a part refund. The original purchase stays in your history.</p>');
     typeChanged(); drawPhotos();
     if (isNew) setTimeout(function () { var a = $("f-amount"); if (a) a.focus(); }, 300);
+  }
+  var recentList = [];
+  function recentChips() {
+    var seen = {}, score = {};
+    state.tx.slice().sort(function (a, b) { return (b.created || 0) - (a.created || 0) || (a.date < b.date ? 1 : -1); }).slice(0, 120).forEach(function (t, i) {
+      if (t.type === "move" || !t.note || t.billId || t.refundOf || t.forCat) return;
+      var k = t.type + "|" + t.note.toLowerCase() + "|" + t.amount;
+      if (!seen[k]) { seen[k] = t; score[k] = 0; }
+      score[k] += 1 + (120 - i) / 120;
+    });
+    recentList = Object.keys(seen).sort(function (a, b) { return score[b] - score[a]; }).slice(0, 6).map(function (k) { return seen[k]; });
+    if (!recentList.length) return "";
+    return '<div class="field" id="w-recent"><span>Tap to repeat</span><div class="chips">' + recentList.map(function (t, i) {
+      return '<button type="button" class="rchip" data-act="quick" data-i="' + i + '">' + esc(t.note) + ' <b class="num">' + money(t.amount) + "</b></button>";
+    }).join("") + "</div></div>";
   }
   function typeChanged() {
     var move = sheetCtx.type === "move";
@@ -1511,6 +1627,28 @@ button { cursor: pointer; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
       case "undo": undo(); break;
+      case "sub-no":
+        state.dismissedSubs = (state.dismissedSubs || []).concat([el.dataset.k]); save(true); render(); break;
+      case "sub-add":
+        var fs = findSubscriptions().filter(function (f) { return f.key === el.dataset.k; })[0]; if (!fs) break;
+        var nowD = new Date(), curM = monthKey(nowD);
+        state.bills.push({ id: uid(), name: fs.name, amount: fs.amount, day: fs.day, cat: fs.cat, pay: fs.pay, start: fs.day > nowD.getDate() ? curM : shiftMonth(curM, 1), posted: null });
+        // don't double-log this month if it's already been paid
+        var nb = state.bills[state.bills.length - 1];
+        if (state.tx.some(function (t) { return t.note && t.note.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim() === fs.key && t.date.slice(0, 7) === curM; })) { nb.start = shiftMonth(curM, 1); }
+        commit(); toast(fs.name + " added as a bill"); break;
+      case "quick":
+        var qt = recentList[+el.dataset.i]; if (!qt || !sheetCtx) break;
+        sheetCtx.type = qt.type; sheetCtx.cat = qt.cat; sheetCtx.pay = qt.pay || ""; sheetCtx.acct = qt.acct || sheetCtx.acct;
+        $("f-amount").value = amtStr(qt.amount); $("f-note").value = qt.note; $("f-date").value = ymd(new Date());
+        [["f-type", qt.type], ["f-pay", qt.pay || ""], ["f-acct", sheetCtx.acct || ""]].forEach(function (g) { var gEl = $(g[0]); if (gEl) gEl.querySelectorAll("button").forEach(function (bb) { bb.setAttribute("aria-pressed", String(bb.dataset.v === g[1])); }); });
+        typeChanged(); $("w-recent").querySelectorAll(".rchip").forEach(function (bb) { bb.setAttribute("aria-pressed", String(bb === el)); });
+        break;
+      case "code-full": var fcard = byId(state.cards, id); if (fcard) showFullCode(fcard); break;
+      case "code-close": closeFullCode(); break;
+      case "cal-day":
+        var cd = el.dataset.d, dayTx = state.tx.filter(function (t) { return t.date === cd && t.type === "out"; }), sum = dayTx.reduce(function (s2, t) { return s2 + t.amount; }, 0);
+        toast(shortDate(cd) + ": " + (sum ? money(sum) + " on " + dayTx.length + " thing" + (dayTx.length === 1 ? "" : "s") : "nothing spent 🎉")); break;
       case "snooze-backup": state.snoozeBackup = Date.now() + 3 * 864e5; save(true); render(); break;
       case "report": case "report-nav":
         var rm = el.dataset.m; if (rm === shiftMonth(monthKey(new Date()), -1) || (state.reportSeen || "") < rm) { if (rm < monthKey(new Date()) && (state.reportSeen || "") < rm) { state.reportSeen = rm; save(true); render(); } }
