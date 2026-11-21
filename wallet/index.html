@@ -1369,7 +1369,20 @@ button { cursor: pointer; }
   }
 
   // ---------- backup & export ----------
+  var IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  function nativeShare(file, okMsg, done) {
+    var P = window.Capacitor.Plugins;
+    return file.text().then(function (text) {
+      return P.Filesystem.writeFile({ path: file.name, data: text, directory: "CACHE", encoding: "utf8" });
+    }).then(function (res) {
+      return P.Share.share({ title: file.name, files: [res.uri] });
+    }).then(function () { if (done) done(); toast(okMsg); }, function (e) {
+      if (e && /cancel/i.test(String(e.message || e))) return;
+      toast("Couldn’t share the file");
+    });
+  }
   function shareOrDownload(file, okMsg, done) {
+    if (IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.Share && window.Capacitor.Plugins.Filesystem) { nativeShare(file, okMsg, done); return; }
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file], title: file.name }).then(function () { if (done) done(); toast(okMsg); }, function () {});
       return;
@@ -1431,6 +1444,7 @@ button { cursor: pointer; }
     return crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)).then(function (h) { return b64u(h); });
   }
   function faceAvailable() {
+    if (IS_NATIVE) return Promise.resolve(false); // passkeys need a signed web domain; the installed app uses the PIN lock
     try {
       if (!window.PublicKeyCredential || !PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) return Promise.resolve(false);
       return PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(function () { return false; });
@@ -1818,7 +1832,7 @@ button { cursor: pointer; }
     save(true); // moves old data into the new storage
   });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-  if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+  if ("serviceWorker" in navigator && !IS_NATIVE) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 })();
 </script>
 </body>
