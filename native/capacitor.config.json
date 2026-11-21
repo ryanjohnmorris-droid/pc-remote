@@ -1,0 +1,9 @@
+{
+  "appId": "app.pocketwallet.ios",
+  "appName": "Pocket Wallet",
+  "webDir": "../wallet",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#EDEFF3"
+  }
+}

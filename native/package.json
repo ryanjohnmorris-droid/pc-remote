@@ -1,0 +1,15 @@
+{
+  "name": "pocket-wallet-ios",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Builds the Wallet web app (../wallet) as a native iPhone app with Capacitor.",
+  "dependencies": {
+    "@capacitor/core": "7.6.10",
+    "@capacitor/ios": "7.6.10",
+    "@capacitor/share": "7.0.4",
+    "@capacitor/filesystem": "7.1.9"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "7.6.10"
+  }
+}
