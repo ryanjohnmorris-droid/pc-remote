@@ -1407,6 +1407,21 @@ button { cursor: pointer; }
     var csv = "﻿" + rows.map(function (r) { return r.map(q).join(","); }).join("\r\n");
     shareOrDownload(new File([csv], "wallet-entries-" + ymd(new Date()) + ".csv", { type: "text/csv" }), "Spreadsheet exported");
   }
+  function appUrl() { return /^https?:$/.test(location.protocol) ? location.origin + location.pathname.replace(/index\.html$/, "") : ""; }
+  function shareAppSheet() {
+    var url = appUrl();
+    if (!url) { toast("Sharing works from the website version of the app"); return; }
+    var qr = "";
+    try { var q = qrcode(0, "M"); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); } catch (e) {}
+    openSheet(shead("Share this app") +
+      '<p style="margin:0;color:var(--muted)">Anyone can use it for free. Each person gets their own private, empty copy: nobody sees your cards or money.</p>' +
+      (qr ? '<div class="codebox"><div class="qr" style="width:200px;height:200px">' + qr + '</div><div class="hint" style="color:#555">Point a phone’s camera at this code</div></div>' : "") +
+      '<div class="field"><span>Link</span><div class="inrow"><input class="input" id="f-applink" readonly value="' + esc(url) + '"><button class="btn alt" data-act="copy" data-v="' + esc(url) + '" style="flex:none">Copy</button></div></div>' +
+      '<button class="btn" data-act="share-app">Send the link…</button>' +
+      '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="label" style="margin-bottom:6px">How they install it</div>' +
+      '<p style="margin:0;font-size:14px"><b>iPhone:</b> open the link in Safari, tap Share → Add to Home Screen, keep “Open as Web App” on, then Add.<br><b>Android:</b> open it in Chrome and tap Install app (or ⋮ → Add to Home screen).</p></div>', { kind: "shareapp" });
+    var svg = document.querySelector(".sheet .qr svg"); if (svg) { svg.style.width = "100%"; svg.style.height = "100%"; }
+  }
   function showMenu() {
     var lockLine = lockCfg ? (lockCfg.credId ? "Face ID lock is on" : "PIN lock is on") : "Lock is off";
     openSheet(shead("Settings") +
@@ -1414,6 +1429,7 @@ button { cursor: pointer; }
       (lockCfg ? '<button class="btn danger sm" data-act="lock-off">Turn off</button>' : '<button class="btn sm" data-act="lock-setup">Turn on</button>') + "</div>" +
       (lockCfg ? '<button class="link" data-act="lock-now" style="margin-top:8px">Lock now</button>' : "") + "</div>" +
       '<button class="btn alt" data-act="undo"' + (undoStack.length ? "" : " disabled style=\"opacity:.5\"") + '>↶ Undo last change' + (undoStack.length ? " (" + undoStack.length + " available)" : "") + "</button>" +
+      '<button class="btn" data-act="share-app-sheet">📤 Share this app with friends</button>' +
       '<div class="field"><span>When the app opens</span>' + chipGroup("f-open", [["cards", "Cards"], ["money", "Money"], ["plan", "Plan"], ["add", "Add an entry"]], state.openTo || "cards") + "</div>" +
       '<button class="btn alt" data-act="cats">Categories</button>' +
       '<div class="field"><span>Your data</span><p style="margin:0;color:var(--muted)">Saved on this phone only. Back up now and then, so you can get it back on a new phone or if you delete the app.' + (state.lastBackup ? " Last backup: " + esc(new Date(state.lastBackup).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })) + "." : " You haven’t backed up yet.") + '</p></div>' +
@@ -1641,6 +1657,12 @@ button { cursor: pointer; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
       case "undo": undo(); break;
+      case "share-app-sheet": shareAppSheet(); break;
+      case "share-app":
+        var su = appUrl(), msg = "Here’s a free app I use to keep my cards and track spending. Open it in Safari and tap Share → Add to Home Screen:";
+        if (navigator.share) navigator.share({ title: "Wallet", text: msg, url: su }).catch(function () {});
+        else { try { navigator.clipboard.writeText(msg + " " + su).then(function () { toast("Link copied"); }); } catch (e) { toast(su); } }
+        break;
       case "sub-no":
         state.dismissedSubs = (state.dismissedSubs || []).concat([el.dataset.k]); save(true); render(); break;
       case "sub-add":
