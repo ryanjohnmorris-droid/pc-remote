@@ -1,5 +1,5 @@
 // Keeps the app working offline. Bump VERSION when the app's files change.
-const VERSION = "wallet-v6";
+const VERSION = "wallet-v7";
 const FILES = ["./", "index.html", "manifest.webmanifest", "jsbarcode.min.js", "qrcode.js", "zxing.min.js",
   "apple-touch-icon.png", "icon-192.png", "icon-512.png"];
 
