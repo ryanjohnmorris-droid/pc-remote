@@ -74,7 +74,7 @@ button { cursor: pointer; }
 .stack { display: flex; flex-direction: column; padding-top: 6px; }
 .wcard { position: relative; width: 100%; aspect-ratio: 1.586; max-width: 100%; border-radius: 18px; border: 0; padding: 18px 20px;
   color: #fff; text-align: left; display: flex; flex-direction: column; justify-content: space-between;
-  box-shadow: 0 -2px 10px rgba(0,0,0,.12), 0 10px 24px rgba(0,0,0,.18); overflow: hidden; transition: transform .2s ease; }
+  box-shadow: 0 -2px 10px rgba(0,0,0,.12), 0 10px 24px rgba(0,0,0,.18); overflow: hidden; transition: transform .2s ease; isolation: isolate; }
 .stack .wcard + .wcard { margin-top: calc(-63.05% + 66px); }
 .wcard:active { transform: translateY(-4px); }
 .wcard::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 100% 0%, rgba(255,255,255,.22), transparent 55%); }
@@ -191,6 +191,8 @@ button { cursor: pointer; }
   transform: translateX(-50%) translateY(10px); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px;
   font-size: 14px; font-weight: 500; opacity: 0; transition: .2s ease; pointer-events: none; white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; }
 .toast.on { opacity: 1; transform: translateX(-50%); }
+.toast.undo { pointer-events: auto; display: flex; align-items: center; gap: 14px; padding: 6px 6px 6px 16px; }
+.toast .ub { border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; height: 34px; padding: 0 14px; }
 .lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
   padding: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); text-align: center; }
 .lock img { width: 76px; height: 76px; border-radius: 18px; }
@@ -303,7 +305,20 @@ button { cursor: pointer; }
   function parseAmt(str) { var v = parseFloat(String(str || "").replace(/[^\d.,]/g, "").replace(",", ".")); return isFinite(v) ? Math.round(v * 100) : 0; }
   function amtStr(c) { return c ? (c / 100).toFixed(2) : ""; }
   function groupNo(n) { var s = String(n || "").replace(/\s+/g, ""); return s.length > 6 ? s.replace(/(.{4})(?=.)/g, "$1 ") : s; }
-  function toast(msg) { var t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("on"); }, 2000); }
+  var undoStack = [], lastSaved = null, justChanged = false;
+  function toast(msg) {
+    var t = $("toast"), undo = justChanged && undoStack.length; justChanged = false;
+    t.classList.toggle("undo", !!undo);
+    if (undo) { t.innerHTML = "<span></span><button class=\"ub\" data-act=\"undo\" type=\"button\">Undo</button>"; t.firstChild.textContent = msg; }
+    else t.textContent = msg;
+    t.classList.add("on"); clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.classList.remove("on", "undo"); }, undo ? 6000 : 2000);
+  }
+  function undo() {
+    if (!undoStack.length) { toast("Nothing to undo"); return; }
+    lastSaved = undoStack.pop(); state = normalize(JSON.parse(lastSaved));
+    save(true); closeSheet(); render(); toast("Undone" + (undoStack.length ? " · tap Undo in Settings to go back further" : ""));
+  }
   function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
   function normalize(d) {
     d = d || {}; var b = blank();
@@ -343,8 +358,13 @@ button { cursor: pointer; }
     }); });
   }
   var saving = Promise.resolve();
-  function save() {
-    var snap = JSON.parse(JSON.stringify(state));
+  function save(quiet) {
+    var json = JSON.stringify(state);
+    if (!quiet && lastSaved !== null && json !== lastSaved) {
+      undoStack.push(lastSaved); if (undoStack.length > 20) undoStack.shift(); justChanged = true;
+    }
+    lastSaved = json;
+    var snap = JSON.parse(json);
     saving = saving.then(function () { return kvSet("state", snap); }).catch(function () {
       try { localStorage.setItem(LS, JSON.stringify(snap)); } catch (e) { toast("Couldn’t save. Your phone may be out of space."); }
     });
@@ -865,6 +885,7 @@ button { cursor: pointer; }
       '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="setrow"><div><b>Lock</b><div class="sub" style="margin:0">' + lockLine + "</div></div>" +
       (lockCfg ? '<button class="btn danger sm" data-act="lock-off">Turn off</button>' : '<button class="btn sm" data-act="lock-setup">Turn on</button>') + "</div>" +
       (lockCfg ? '<button class="link" data-act="lock-now" style="margin-top:8px">Lock now</button>' : "") + "</div>" +
+      '<button class="btn alt" data-act="undo"' + (undoStack.length ? "" : " disabled style=\"opacity:.5\"") + '>↶ Undo last change' + (undoStack.length ? " (" + undoStack.length + " available)" : "") + "</button>" +
       '<div class="field"><span>Your data</span><p style="margin:0;color:var(--muted)">Saved on this phone only. Back up now and then, so you can get it back on a new phone or if you delete the app.</p></div>' +
       '<p style="margin:0;font-size:14px" class="num">' + state.cards.length + " cards · " + state.tx.length + " entries · " + state.bills.length + " bills · " + state.goals.length + " goals</p>" +
       '<button class="btn" data-act="backup">Back up (save to Files)</button>' +
@@ -950,7 +971,7 @@ button { cursor: pointer; }
       else { locked = true; coverOnly = false; closeSheet(); }
     }
   });
-  function postBillsAndRender() { if (postBills()) save(); render(); }
+  function postBillsAndRender() { if (postBills()) save(true); render(); }
 
   // ---------- events ----------
   document.addEventListener("click", function (e) {
@@ -984,7 +1005,7 @@ button { cursor: pointer; }
       case "close": closeSheet(); break;
       case "open-card": showCard(id); break;
       case "edit-card": cardForm(byId(state.cards, id)); break;
-      case "fav": var fc = byId(state.cards, id); if (fc) { fc.fav = !fc.fav; save(); render(); showCard(id); } break;
+      case "fav": var fc = byId(state.cards, id); if (fc) { fc.fav = !fc.fav; save(); render(); showCard(id); toast(fc.fav ? "Added to favourites" : "Removed from favourites"); } break;
       case "use-gift": txForm({ type: "out", pay: id, cat: "Shopping" }); break;
       case "copy":
         var v = el.dataset.v;
@@ -1055,6 +1076,7 @@ button { cursor: pointer; }
         if (!(ga > 0)) { $("f-err").textContent = "Enter an amount above zero."; return; }
         if (g) { g.saved = Math.max(0, g.saved + (act === "goal-add" ? ga : -ga)); }
         commit(); showGoal(id); toast(act === "goal-add" ? "Added " + money(ga) : "Took out " + money(ga)); break;
+      case "undo": undo(); break;
       case "backup": backup(); break;
       case "restore": $("restoreFile").click(); break;
       case "export": exportCsv(); break;
@@ -1075,16 +1097,16 @@ button { cursor: pointer; }
     if (e.target.id === "q") { ui.q = e.target.value; $("moneyBody").innerHTML = renderMoneyBody(); }
     if (e.target.id === "cq") { ui.cq = e.target.value; $("cardsBody").innerHTML = renderCardsBody(); }
   });
-  document.addEventListener("change", function (e) { if (e.target.id === "currency") { state.currency = e.target.value; commit(); } });
+  document.addEventListener("change", function (e) { if (e.target.id === "currency") { state.currency = e.target.value; commit(); toast("Currency changed to " + state.currency); } });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && sheetCtx) closeSheet(); });
 
   // ---------- start ----------
   Promise.all([load(), loadLock()]).then(function () {
     if (lockCfg) { locked = true; showLock(); }
-    if (postBills()) save();
+    postBills();
     render();
     $("app").hidden = false; $("tabbar").hidden = false;
-    save(); // moves old data into the new storage
+    save(true); // moves old data into the new storage
   });
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
