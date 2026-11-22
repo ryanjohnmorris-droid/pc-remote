@@ -104,12 +104,14 @@ class ScreenRecorder(
                 c.codecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC).videoCapabilities.also { c.release() }
             }
         }.getOrNull()
-        while (true) {
-            val w = align(metrics.widthPixels * scale)
-            val h = align(metrics.heightPixels * scale)
-            if (caps == null || caps.isSizeSupported(w, h) || scale < 0.3) return w to h
+        var w = align(metrics.widthPixels * scale)
+        var h = align(metrics.heightPixels * scale)
+        while (caps != null && !caps.isSizeSupported(w, h) && scale > 0.3) {
             scale *= 0.9
+            w = align(metrics.widthPixels * scale)
+            h = align(metrics.heightPixels * scale)
         }
+        return w to h
     }
 
     private fun align(v: Double) = max(16, (v.toInt() / 16) * 16)

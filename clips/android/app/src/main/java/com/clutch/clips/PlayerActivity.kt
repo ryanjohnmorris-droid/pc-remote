@@ -28,7 +28,7 @@ class PlayerActivity : Activity() {
 
     private lateinit var file: File
     private lateinit var video: VideoView
-    private lateinit var title: TextView
+    private lateinit var titleView: TextView
     private lateinit var startBar: SeekBar
     private lateinit var endBar: SeekBar
     private lateinit var rangeLabel: TextView
@@ -60,10 +60,10 @@ class PlayerActivity : Activity() {
 
         val top = row()
         top.addView(button("‹ Back") { finish() }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(44)))
-        title = text(file.nameWithoutExtension, 16f, bold = true).apply {
+        titleView = text(file.nameWithoutExtension, 16f, bold = true).apply {
             maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(dp(12), 0, 0, 0)
         }
-        top.addView(title, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        top.addView(titleView, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         root.addView(top)
 
         val frame = FrameLayout(this).apply { setBackgroundColor(0xFF000000.toInt()) }
@@ -157,7 +157,7 @@ class PlayerActivity : Activity() {
                 Toast.makeText(this, if (ok) "Saved as \"${dst.nameWithoutExtension}\"" else "Couldn't trim this clip", Toast.LENGTH_LONG).show()
                 if (ok) {
                     file = dst
-                    title.text = dst.nameWithoutExtension
+                    titleView.text = dst.nameWithoutExtension
                     video.setVideoPath(dst.path)
                 }
             }
@@ -190,7 +190,7 @@ class PlayerActivity : Activity() {
                     Toast.makeText(this, "A clip with that name already exists", Toast.LENGTH_SHORT).show()
                 } else if (file.renameTo(dst)) {
                     file = dst
-                    title.text = name
+                    titleView.text = name
                 }
             }
             .setNegativeButton("Cancel", null)

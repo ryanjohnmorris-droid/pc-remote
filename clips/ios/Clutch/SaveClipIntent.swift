@@ -11,7 +11,10 @@ struct SaveClipIntent: AppIntent {
             return .result(dialog: "Replay is off. Open Clutch and tap Start replay first.")
         }
         let saved = await DarwinNotify.wait(for: Shared.clipQueuedNote, timeout: 4, afterPosting: Shared.saveClipNote)
-        return .result(dialog: saved ? "Clip saved" : "Couldn't save a clip. Is replay still on?")
+        if saved {
+            return .result(dialog: "Clip saved")
+        }
+        return .result(dialog: "Couldn't save a clip. Is replay still on?")
     }
 }
 

@@ -104,7 +104,7 @@ enum DarwinNotify {
         }
     }
 
-    private final class Once {
+    private final class Once: @unchecked Sendable {
         private var cont: CheckedContinuation<Bool, Never>?
         private let lock = NSLock()
         init(_ c: CheckedContinuation<Bool, Never>) { cont = c }
