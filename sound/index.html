@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Synth</title>
+<meta name="description" content="Play a synth, tap drum pads and make beats on your phone.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Synth">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F4F1EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131116" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+/* Fonts are stored with the app (no outside requests). */
+@font-face { font-family: "Sora"; font-weight: 600; font-display: swap; src: url("fonts/sora-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "Sora"; font-weight: 700; font-display: swap; src: url("fonts/sora-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("fonts/inter-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 500; font-display: swap; src: url("fonts/inter-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("fonts/inter-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: swap; src: url("fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  --bg: #F4F1EC; --surface: #FFFFFF; --surface-2: #EEEAE4; --ink: #1B1714; --muted: #6C645C; --line: #E0DAD2;
+  --accent: #DD4F27; --accent-ink: #FFFFFF; --accent-soft: #F9DDD2;
+  --white-key: #FFFFFF; --white-key-edge: #D5CEC5; --black-key: #1E1A1F;
+  --p1: #E0573A; --p2: #E99B2E; --p3: #C9B42A; --p4: #4FA65B; --p5: #2E9E9A; --p6: #3F7FD6; --p7: #7C62D8; --p8: #C454A4;
+  --shadow: 0 1px 2px rgba(27,23,20,.06), 0 8px 24px rgba(27,23,20,.08);
+  --f-display: "Sora", "Inter", system-ui, -apple-system, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --tabbar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131116; --surface: #1D1A20; --surface-2: #27232B; --ink: #F2EEEA; --muted: #A39B94; --line: #34303A;
+    --accent: #FF7B52; --accent-ink: #1A0C06; --accent-soft: #3D2219;
+    --white-key: #ECE7E1; --white-key-edge: #9E968E; --black-key: #0B0A0D;
+    --p1: #FF7458; --p2: #FFB04A; --p3: #E2CD45; --p4: #66C474; --p5: #45C2BC; --p6: #6FA3F2; --p7: #9E88F2; --p8: #E276C2;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { padding-top: env(safe-area-inset-top, 0px); -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 20px);
+  -webkit-user-select: none; user-select: none; overscroll-behavior-y: none; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 900px; margin: 0 auto; }
+
+/* Title bar with a live waveform and the record button */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.bar h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 22px; letter-spacing: -.01em; }
+#scope { flex: 1; min-width: 0; height: 36px; display: block; }
+.rec { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-radius: 19px;
+  border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; }
+.rec .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.rec.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.rec.on .dot { background: var(--accent-ink); animation: blink 1s steps(2) infinite; }
+.rec .t { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+@keyframes blink { 50% { opacity: .2; } }
+
+.view { display: flex; flex-direction: column; gap: 14px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+
+/* Chips, toggles and steppers */
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); font-weight: 500; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn { height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.stepper { display: inline-flex; align-items: center; height: 40px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.stepper button { width: 40px; height: 100%; border: 0; background: none; font-size: 20px; line-height: 1; }
+.stepper .val { min-width: 64px; text-align: center; font-family: var(--f-mono); font-size: 14px; }
+.stepper .val small { font-family: var(--f-body); color: var(--muted); font-size: 11px; display: block; line-height: 1; margin-top: 1px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+.seg button { height: 34px; padding: 0 16px; border: 0; border-radius: 9px; background: none; font-weight: 600; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+select { height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; max-width: 100%; }
+
+/* Sliders */
+.sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; }
+.slider { display: flex; flex-direction: column; gap: 4px; }
+.slider span { font-size: 13px; color: var(--muted); font-weight: 500; }
+input[type=range] { width: 100%; height: 28px; accent-color: var(--accent); margin: 0; }
+
+/* Piano */
+.piano { position: relative; height: clamp(170px, 42vh, 320px); touch-action: none; border-radius: 14px; overflow: hidden;
+  background: var(--white-key-edge); box-shadow: var(--shadow); }
+.key { position: absolute; top: 0; }
+.key.w { bottom: 0; background: var(--white-key); border-right: 1px solid var(--white-key-edge); border-radius: 0 0 8px 8px;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; font-size: 11px; font-weight: 600; color: #8A8178; }
+.key.b { height: 60%; z-index: 2; background: var(--black-key); border-radius: 0 0 6px 6px; box-shadow: inset 0 -4px 0 rgba(255,255,255,.08); }
+.key.down { background: var(--accent) !important; color: var(--accent-ink); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* Drum pads */
+.pads { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; touch-action: manipulation; }
+@media (min-width: 640px) { .pads { grid-template-columns: repeat(4, 1fr); } }
+.pad { position: relative; aspect-ratio: 1 / .82; border: 0; border-radius: 18px; background: var(--c); color: #fff;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; padding: 14px; text-align: left;
+  font-family: var(--f-display); font-weight: 600; font-size: 17px; box-shadow: inset 0 -5px 0 rgba(0,0,0,.18);
+  transition: transform .06s, filter .06s; touch-action: none; }
+.pad kbd { position: absolute; top: 12px; right: 14px; font-family: var(--f-mono); font-size: 12px; opacity: .75; }
+.pad.hit { transform: scale(.96); filter: brightness(1.25); }
+.pad:nth-child(1) { --c: var(--p1); } .pad:nth-child(2) { --c: var(--p2); } .pad:nth-child(3) { --c: var(--p3); } .pad:nth-child(4) { --c: var(--p4); }
+.pad:nth-child(5) { --c: var(--p5); } .pad:nth-child(6) { --c: var(--p6); } .pad:nth-child(7) { --c: var(--p7); } .pad:nth-child(8) { --c: var(--p8); }
+.pad:nth-child(2), .pad:nth-child(3) { color: #2A1E08; }
+@media (prefers-color-scheme: dark) { .pad { color: #16121A; } }
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* Step sequencer */
+.transport { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.play { width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; box-shadow: var(--shadow); flex: none; }
+.play svg { width: 24px; height: 24px; }
+.grid { display: flex; flex-direction: column; gap: 6px; }
+.grow { display: grid; grid-template-columns: 76px 1fr; gap: 8px; align-items: stretch; }
+.rlabel { border: 0; background: var(--surface-2); border-radius: 8px; font-size: 12px; font-weight: 600; padding: 0 6px; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 36px; }
+.cells { display: grid; grid-template-columns: repeat(var(--cols, 16), 1fr); gap: 4px; touch-action: none; }
+.cell { height: 36px; border: 0; border-radius: 7px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); padding: 0; }
+.cell.beat { background: var(--surface-2); }
+.cell.gap { margin-left: 4px; }
+.cell.on { background: var(--c, var(--accent)); box-shadow: none; }
+.cell.now { box-shadow: inset 0 0 0 2px var(--ink); }
+.grid.drums .grow:nth-child(1) { --c: var(--p1); } .grid.drums .grow:nth-child(2) { --c: var(--p2); } .grid.drums .grow:nth-child(3) { --c: var(--p3); } .grid.drums .grow:nth-child(4) { --c: var(--p4); }
+.grid.drums .grow:nth-child(5) { --c: var(--p5); } .grid.drums .grow:nth-child(6) { --c: var(--p6); } .grid.drums .grow:nth-child(7) { --c: var(--p7); } .grid.drums .grow:nth-child(8) { --c: var(--p8); }
+.pages { display: flex; gap: 8px; justify-content: center; }
+.pages button { position: relative; }
+.pages button.live::after { content: ""; position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.slots { display: inline-flex; gap: 6px; }
+.slots button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-family: var(--f-display); }
+.slots button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Bottom tab bar */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--surface); border-top: 1px solid var(--line);
+  display: flex; justify-content: center; gap: 4px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)); }
+.tabbar button { flex: 1; max-width: 160px; height: 52px; border: 0; background: none; border-radius: 12px; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 600; }
+.tabbar svg { width: 24px; height: 24px; }
+.tabbar button[aria-selected="true"] { color: var(--accent); }
+
+/* Bottom sheet for a finished recording */
+.scrim { position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.4); }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 20px max(16px, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow); }
+.sheet .in { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.sheet h2 { margin: 0; font-family: var(--f-display); font-size: 19px; }
+.sheet audio { width: 100%; }
+.sheet .acts { display: flex; gap: 10px; }
+.sheet .acts > * { flex: 1; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.toast { position: fixed; left: 50%; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 18px); transform: translateX(-50%);
+  z-index: 40; background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 500; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <h1>Synth</h1>
+    <canvas id="scope" aria-hidden="true"></canvas>
+    <button id="rec" class="rec" aria-label="Record what you play"><span class="dot"></span><span class="t" id="recLabel">Rec</span></button>
+  </header>
+
+  <main>
+    <!-- Keys: a playable synth -->
+    <section class="view" id="view-keys" data-view="keys">
+      <div class="chips" id="presets" role="group" aria-label="Sound"></div>
+      <div class="row">
+        <div class="stepper" aria-label="Octave">
+          <button data-oct="-1" aria-label="Octave down">−</button>
+          <div class="val"><span id="octVal">4</span><small>octave</small></div>
+          <button data-oct="1" aria-label="Octave up">+</button>
+        </div>
+        <button id="hold" class="btn" aria-pressed="false">Hold</button>
+        <span class="spacer"></span>
+      </div>
+      <div class="piano" id="piano" aria-label="Piano keyboard"></div>
+      <div class="sliders">
+        <label class="slider"><span>Tone</span><input type="range" id="tone" min="0" max="1" step="0.01"></label>
+        <label class="slider"><span>Reverb</span><input type="range" id="reverb" min="0" max="1" step="0.01"></label>
+        <label class="slider"><span>Echo</span><input type="range" id="echo" min="0" max="1" step="0.01"></label>
+      </div>
+      <p class="hint" id="keysHint">Slide your finger across the keys to glide between notes. Hold keeps notes ringing after you let go.</p>
+    </section>
+
+    <!-- Pads: drum pads -->
+    <section class="view" id="view-pads" data-view="pads" hidden>
+      <div class="pads" id="pads"></div>
+      <label class="check"><input type="checkbox" id="padRec"> Add pad hits to the beat while it plays</label>
+      <p class="hint" id="padsHint">Start a beat in the Beats tab, then play along here.</p>
+    </section>
+
+    <!-- Beats: step sequencer -->
+    <section class="view" id="view-beats" data-view="beats" hidden>
+      <div class="transport">
+        <button class="play" id="play" aria-label="Play"></button>
+        <div class="stepper" aria-label="Tempo">
+          <button data-bpm="-1" aria-label="Slower">−</button>
+          <div class="val"><span id="bpmVal">100</span><small>BPM</small></div>
+          <button data-bpm="1" aria-label="Faster">+</button>
+        </div>
+        <label class="slider" style="flex:1;min-width:120px"><span>Swing</span><input type="range" id="swing" min="0" max="0.6" step="0.01"></label>
+      </div>
+      <div class="row">
+        <div class="seg" role="tablist" aria-label="Track">
+          <button role="tab" data-track="drums">Drums</button>
+          <button role="tab" data-track="melody">Melody</button>
+        </div>
+        <span class="spacer"></span>
+        <div class="slots" id="slots" role="group" aria-label="Pattern"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+      <div class="pages" id="pages" hidden>
+        <button class="btn" data-page="0">Steps 1–8</button>
+        <button class="btn" data-page="1">Steps 9–16</button>
+      </div>
+      <div class="card" id="melodyOpts" hidden>
+        <div class="row">
+          <label class="slider" style="flex:1;min-width:120px"><span>Sound</span><select id="mSound"></select></label>
+          <label class="slider"><span>Key</span><select id="mRoot"></select></label>
+          <label class="slider" style="flex:1 1 100%"><span>Scale</span><select id="mScale"></select></label>
+        </div>
+        <p class="hint">Tap squares next to each other to make a longer note.</p>
+      </div>
+      <div class="row">
+        <select id="starter" aria-label="Load a starter beat"></select>
+        <span class="spacer"></span>
+        <button class="btn" id="clear">Clear</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="keys">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M8 4v16M12 4v16M16 4v16"/><path d="M6.5 4h3v8h-3zM14.5 4h3v8h-3z" fill="currentColor"/></svg>
+    Keys</button>
+  <button role="tab" data-tab="pads">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="currentColor"/></svg>
+    Pads</button>
+  <button role="tab" data-tab="beats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h3M10 6h3M17 6h3M4 12h3M14 12h3M4 18h3M10 18h3M17 18h3"/></svg>
+    Beats</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="recSheet" role="dialog" aria-modal="true" aria-labelledby="recTitle" hidden>
+  <div class="in">
+    <h2 id="recTitle">Your recording</h2>
+    <audio id="recAudio" controls></audio>
+    <div class="acts">
+      <a class="btn primary" id="recSave" download>Save</a>
+      <button class="btn" id="recShare" hidden>Share</button>
+      <button class="btn" id="recClose">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -87,3 +87,14 @@ On non-Windows systems the server runs in **dry-run** mode. It logs commands ins
 ## License
 
 [MIT](LICENSE)
+
+## Synth (music maker)
+
+The `sound/` folder is a separate phone app for making music. It needs no install or sign-in, and it works offline once it has loaded.
+
+- **Keys:** a playable synth with 7 sounds (Piano, Pluck, Pad, Bass, Lead, Organ, Bell), multi-touch, sliding between keys, octave and Hold buttons, and Tone, Reverb and Echo sliders.
+- **Pads:** 8 drum pads (kick, snare, clap, hi-hats, toms, cowbell). Turn on "Add pad hits to the beat" to add what you play to the beat while it runs.
+- **Beats:** a 16-step sequencer with a Drums track and a Melody track (pick a sound, key and scale), tempo, swing, 4 patterns (A–D) and starter beats (Rock, Hip hop, House, Trap, Reggaeton, Lo-fi).
+- **Rec:** records everything you play. Save or share the recording when you're done.
+
+All the sounds are made live in the browser, so there are no sample files. Your beats are saved on your phone. To run it on your computer, run `python -m http.server` in the `sound` folder and open http://localhost:8000. To put it online, use the `pocketsynth` service in `render.yaml`.
