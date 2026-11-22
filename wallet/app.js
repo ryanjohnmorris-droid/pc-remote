@@ -293,7 +293,7 @@
   }
 
   function renderMoneyShell() {
-    var head = '<div class="row" style="justify-content:space-between;margin-bottom:12px;align-items:center"><button class="btn alt sm" data-act="import-open" style="flex:none">⬇ Import Apple Pay</button><span style="display:flex;gap:8px;align-items:center"><label class="label" for="currency">Currency</label>' +
+    var head = '<div class="row" style="justify-content:space-between;margin-bottom:12px;align-items:center"><button class="btn alt sm" data-act="import-open" style="flex:none">⬇ Import</button><span style="display:flex;gap:8px;align-items:center"><label class="label" for="currency">Currency</label>' +
       '<select class="curr" id="currency">' + CURRENCIES.map(function (c) { return "<option" + (c === state.currency ? " selected" : "") + ">" + c + "</option>"; }).join("") + "</select></span></div>";
     if (!state.tx.length) {
       return head + '<div class="panel balance"><div class="label">Balance</div><div class="amt num">' + money(0) + '</div><div class="sub">Nothing logged yet</div></div>' +
@@ -609,18 +609,22 @@
     return { added: added, skipped: skipped };
   }
   function importDone(r) {
-    if (!r.added && !r.skipped) { toast("No purchases found in that"); return; }
+    if (!r.added && !r.skipped) { toast("Couldn’t find any purchases in that file"); return; }
     closeSheet(); ui.tab = "money"; ui.month = monthKey(new Date()); commit();
-    toast(r.added ? "Added " + r.added + " purchase" + (r.added === 1 ? "" : "s") + (r.skipped ? " · " + r.skipped + " already added" : "") : "No new purchases · " + r.skipped + " already added");
+    toast(r.added ? "Added " + r.added + " entr" + (r.added === 1 ? "y" : "ies") + (r.skipped ? " · " + r.skipped + " already added" : "") : "Nothing new · " + r.skipped + " already added");
   }
   function importSheet() {
-    var n = state.tx.filter(function (t) { return t.fromApplePay; }).length;
-    openSheet(shead("Import Apple Pay purchases") +
-      '<p style="margin:0;color:var(--muted)">Your iPhone can note every Apple Pay purchase in a file. Import it here and the purchases are added to Money, with a category guessed from the store’s name. Anything already imported is skipped.</p>' +
-      '<button class="btn" data-act="import-file">Choose “Wallet purchases” file</button>' +
-      '<button class="btn alt" data-act="import-paste">Paste from clipboard</button>' +
-      '<button class="btn alt" data-act="import-help">How to set it up (one time, free)</button>' +
-      (n ? '<p class="hint">' + n + " purchase" + (n === 1 ? "" : "s") + " imported so far.</p>" : ""), { kind: "import" });
+    var n = state.tx.filter(function (t) { return t.fromApplePay; }).length, nc = state.tx.filter(function (t) { return t.fromCsv; }).length;
+    openSheet(shead("Import purchases") +
+      '<p style="margin:0;color:var(--muted)">Bring purchases in instead of typing them. Categories are guessed from the store’s name, and anything already imported is skipped, so importing the same file twice is safe.</p>' +
+      '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="label" style="margin-bottom:8px">Cash App or bank statement</div>' +
+      '<p style="margin:0 0 10px;font-size:14px">Import a CSV file of your Cash App activity, or a statement from most banks.</p>' +
+      '<div class="stackv" style="gap:8px"><button class="btn" data-act="import-csv">Choose CSV file</button><button class="btn alt" data-act="cashapp-help">How to get your Cash App file</button></div>' +
+      (nc ? '<p class="hint" style="margin-top:8px">' + nc + " imported from statements so far.</p>" : "") + "</div>" +
+      '<div class="panel" style="box-shadow:none;background:var(--surface-2)"><div class="label" style="margin-bottom:8px">Apple Pay (incl. Cash App Card)</div>' +
+      '<p style="margin:0 0 10px;font-size:14px">Every tap-to-pay with a card in Apple Wallet, logged by a free Shortcuts automation.</p>' +
+      '<div class="stackv" style="gap:8px"><button class="btn" data-act="import-file">Choose “Wallet purchases” file</button><button class="btn alt" data-act="import-paste">Paste from clipboard</button><button class="btn alt" data-act="import-help">How to set it up (one time, free)</button></div>' +
+      (n ? '<p class="hint" style="margin-top:8px">' + n + " purchase" + (n === 1 ? "" : "s") + " imported so far.</p>" : "") + "</div>", { kind: "import" });
   }
   var GUIDE = [
     ["Before you start", [
@@ -679,8 +683,91 @@
   }
   $("importFile").addEventListener("change", function (e) {
     var f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return;
-    var r = new FileReader(); r.onload = function () { importDone(importText(r.result)); }; r.readAsText(f);
+    var r = new FileReader(); r.onload = function () {
+      var txt = String(r.result || "");
+      // a CSV statement (has a header with Date and Amount) vs. the Apple Pay "date | amount | store | card" file
+      importDone(/^[^\n|]*date[^\n|]*,/i.test(txt.replace(/^\ufeff/, "").split(/\r?\n/).slice(0, 15).join("\n")) ? importCsv(txt) : importText(txt));
+    }; r.readAsText(f);
   });
+
+  // ---------- CSV statements (Cash App, banks) ----------
+  function parseCsv(text) {
+    var rows = [], row = [], cell = "", q = false, i = 0, c;
+    text = String(text).replace(/^\ufeff/, "");
+    for (; i < text.length; i++) {
+      c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+      else if (c === '"') q = true;
+      else if (c === ",") { row.push(cell); cell = ""; }
+      else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+      else cell += c;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(function (r) { return r.some(function (x) { return x.trim(); }); });
+  }
+  function signedAmt(v) {
+    var x = String(v || "").trim(); if (!x) return null;
+    var a = parseAmt(x); if (!a) return null;
+    var neg = /^\(.*\)$/.test(x) || /-\s*[$£€¥]?\s*\d/.test(x) || /\bDR\b/i.test(x);
+    return neg ? -a : a;
+  }
+  function csvDate(v) {
+    v = String(v || "").trim();
+    var m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); // US style month/day/year
+    if (m) { var y = +m[3]; if (y < 100) y += 2000; return y + "-" + pad(+m[1]) + "-" + pad(+m[2]); }
+    return parseDateLoose(v);
+  }
+  function importCsv(text) {
+    var rows = parseCsv(text), hi = -1;
+    for (var k = 0; k < Math.min(rows.length, 15); k++) { var hdr = rows[k].join(",").toLowerCase(); if (/date/.test(hdr) && /(amount|debit|credit|withdraw|deposit)/.test(hdr)) { hi = k; break; } }
+    if (hi < 0) return { added: 0, skipped: 0 };
+    var H = rows[hi].map(function (h) { return h.trim().toLowerCase(); });
+    var col = function (re, not) { for (var j = 0; j < H.length; j++) if (re.test(H[j]) && !(not && not.test(H[j]))) return j; return -1; };
+    var cDate = col(/^(transaction |posted |post |posting )?date|^date/), cAmt = col(/^(net amount|amount|transaction amount|total)$/), cAmt2 = col(/amount/, /fee|asset|net|balance/);
+    var cDebit = col(/debit|withdraw|money out|paid out/), cCredit = col(/credit|deposit|money in|paid in/);
+    var cDesc = col(/^(notes?|description|memo|details|payee|merchant|name)$/), cName = col(/name of sender|receiver|counterparty|merchant|payee|^name/);
+    var cType = col(/transaction type|^type$/), cStatus = col(/status/), cId = col(/transaction id|^id$|reference|ref/);
+    var cash = /cash app/i.test(text.slice(0, 2000)) || H.indexOf("name of sender/receiver") >= 0 || H.indexOf("asset type") >= 0;
+    var seen = {}; state.imported.forEach(function (x) { seen[x] = 1; });
+    var cashCard = state.cards.filter(function (c) { return /cash ?(app|card)/i.test(c.name); })[0];
+    var added = 0, skipped = 0;
+    rows.slice(hi + 1).forEach(function (r) {
+      var get = function (j) { return j >= 0 && j < r.length ? String(r[j]).trim() : ""; };
+      var status = get(cStatus).toLowerCase();
+      if (status && /fail|cancel|declin|refunded|pending|waiting/.test(status)) return;
+      var amt = null;
+      if (cAmt >= 0 && get(cAmt)) amt = signedAmt(get(cAmt));
+      else if (cAmt2 >= 0 && get(cAmt2)) amt = signedAmt(get(cAmt2));
+      else { var d1 = parseAmt(get(cDebit)), c1 = parseAmt(get(cCredit)); if (d1) amt = -d1; else if (c1) amt = c1; }
+      if (!amt) return;
+      var date = csvDate(get(cDate)); if (!date) return;
+      var type = get(cType), who = get(cName), desc = get(cDesc);
+      var key = "csv|" + (get(cId) || [date, amt, desc, who, type].join("|"));
+      if (seen[key]) { skipped++; return; }
+      seen[key] = 1; state.imported.push(key);
+      var note = desc && who && desc !== who ? who + " · " + desc : desc || who || type || "Imported";
+      var out = amt < 0, t = { id: uid(), type: out ? "out" : "in", amount: Math.abs(amt), date: date, note: note.slice(0, 60), created: Date.now(), fromCsv: true, pay: "" };
+      if (out) t.cat = guessCat(note + " " + type); else t.cat = catNames("in").indexOf(/refund/i.test(note + type) ? "Refund" : /pay ?roll|direct dep|salary|paycheck/i.test(note + type) ? "Pay" : "Other") >= 0 ? (/refund/i.test(note + type) ? "Refund" : /pay ?roll|direct dep|salary|paycheck/i.test(note + type) ? "Pay" : "Other") : catNames("in")[0];
+      if (cash && cashCard) { t.pay = cashCard.id; if (cashCard.acct) t.acct = cashCard.acct; }
+      else if (state.accounts.length === 1) t.acct = state.accounts[0].id;
+      state.tx.push(t); added++;
+    });
+    if (state.imported.length > 5000) state.imported = state.imported.slice(-5000);
+    return { added: added, skipped: skipped };
+  }
+  function cashAppHelp() {
+    var step = function (n2, t) { return '<div style="display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start"><span class="ic" style="width:28px;height:28px;border-radius:9px;font-size:13px;background:#00D632;color:#fff">' + n2 + "</span><div>" + t + "</div></div>"; };
+    openSheet(shead("Get your Cash App file") +
+      '<p style="margin:0;color:var(--muted)">Cash App lets you download your activity as a CSV file from its website. It’s free and includes card purchases, payments to friends and money you receive.</p>' +
+      step(1, "In <b>Safari</b>, go to <b>cash.app/account</b> and sign in with your phone number or email (Cash App sends you a code).") +
+      step(2, "Tap <b>Activity</b> (or <b>Statements</b>).") +
+      step(3, "Tap <b>Export CSV</b> (it may be under a <b>⋯</b> or <b>Statements</b> button). If Safari shows the page squashed, tap <b>aA → Request Desktop Website</b> and look again.") +
+      step(4, "Safari downloads a file like <b>cash_app_report.csv</b> to <b>Files → Downloads</b>.") +
+      step(5, "Come back here, tap <b>⬇ Import → Choose CSV file</b> and pick that file.") +
+      '<p class="hint" style="text-align:left">Only completed payments are included. Import again any time: payments already added are skipped. If you add a card in the Cards tab called <b>Cash App Card</b>, imported Cash App payments are linked to it.</p>' +
+      '<p class="hint" style="text-align:left">Also want card taps logged automatically? Add your Cash App Card to Apple Wallet (Cash App → Card tab → ⋯ → Add to Apple Wallet), then pick it in the Apple Pay automation.</p>' +
+      '<button class="btn" data-act="import-csv">Choose CSV file</button><button class="btn alt" data-act="import-open">Back</button>', { kind: "cashhelp" });
+  }
 
   // ---------- crypto (view-only: no private keys, ever) ----------
   var COINS = [
@@ -1733,7 +1820,8 @@
       case "guide-reset":
         guideDone = {}; try { localStorage.removeItem("wallet.guide"); } catch (e) {}
         importHelp(); break;
-      case "import-file": $("importFile").click(); break;
+      case "import-file": case "import-csv": $("importFile").click(); break;
+      case "cashapp-help": cashAppHelp(); break;
       case "import-paste":
         if (navigator.clipboard && navigator.clipboard.readText) {
           navigator.clipboard.readText().then(function (txt) { importDone(importText(txt)); }, function () { toast("Couldn’t read the clipboard. Tap Paste when your iPhone asks."); });
