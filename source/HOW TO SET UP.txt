@@ -33,9 +33,10 @@ TIPS
 
 START WITH WINDOWS (optional)
 -----------------------------
-Right-click server.py > Show more options > Create shortcut.
-Press Windows key + R, type  shell:startup  and press Enter.
-Move the shortcut into the folder that opens.
+In the phone app: More > Settings > "Start when the PC turns on".
+PC Remote then starts by itself (hidden, no black window) every time
+you sign in. To stop it: More > Settings > "Stop PC Remote".
+Double-click server.py any time to see the QR code and link again.
 
 PROBLEMS
 --------

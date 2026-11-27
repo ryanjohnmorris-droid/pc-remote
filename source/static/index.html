@@ -379,6 +379,10 @@
     <h2>Screen</h2>
     <label class="setrow"><span>Open apps in phone size<small>Apps you open or switch to from the phone get a tall, phone-shaped window on the PC, so they're easy to read here. Websites switch to their mobile layout.</small></span>
       <input type="checkbox" class="switch" data-set="autoPhone"></label>
+    <h2>PC</h2>
+    <label class="setrow"><span>Start when the PC turns on<small>PC Remote starts by itself, hidden (no black window), every time you sign in to Windows.</small></span>
+      <input type="checkbox" class="switch" id="autoStart"></label>
+    <button class="k small danger" id="quitBtn">Stop PC Remote on the PC</button>
     <h2>App</h2>
     <label class="setrow"><span>Vibrate on taps<small>Android only; iPhones don't allow it.</small></span>
       <input type="checkbox" class="switch" data-set="haptics"></label>
@@ -1084,6 +1088,7 @@
       else if (i.type === "checkbox") i.checked = !!settings[k];
       else i.value = settings[k];
     });
+    $("#autoStart").checked = !!pcInfo.autostart;
     $("#aboutLine").textContent = `PC Remote ${pcInfo.version || ""}` + (pcInfo.name ? ` · connected to ${pcInfo.name}` : "");
   }
   $$("[data-set]").forEach(i => i.addEventListener(i.type === "checkbox" ? "change" : "input", () => {
@@ -1092,7 +1097,19 @@
     settings[k] = i.type === "checkbox" ? i.checked : +i.value;
     saveSettings();
   }));
-  showHooks["v-settings"] = renderSettings;
+  showHooks["v-settings"] = () => {
+    renderSettings();
+    api("/api/info").then(i => { pcInfo = i; $("#autoStart").checked = !!i.autostart; renderSettings(); }).catch(() => {});
+  };
+  $("#autoStart").addEventListener("change", e => {
+    const on = e.target.checked;
+    send({ t: "autostart", on }); pcInfo.autostart = on;
+    toast(on ? "PC Remote will start by itself when the PC turns on" : "PC Remote won't start by itself any more");
+  });
+  $("#quitBtn").addEventListener("click", () => {
+    if (!confirm("Stop PC Remote on the PC? To use the remote again, start server.py on the PC (or restart the PC if it starts by itself).")) return;
+    send({ t: "quit" }); setTimeout(() => setStatus(false, "Stopped"), 600);
+  });
 
   // ================= power =================
   $$("[data-sys]").forEach(b => b.addEventListener("click", () => {

@@ -46,7 +46,7 @@ The status at the top shows the connection delay in milliseconds (or "slow mode"
    - **Android (Chrome):** ⋮ menu → **Add to Home screen**
    - **Samsung Internet:** ≡ menu → **Add page to** → **Home screen**
 
-**Start with Windows (optional):** right-click `server.py` → **Create shortcut**. Press `Win + R`, type `shell:startup` and move the shortcut into that folder.
+**Start with Windows (optional):** in the phone app go to **More → Settings → Start when the PC turns on**. PC Remote then starts by itself, hidden (no black window), every time you sign in to Windows. **Stop PC Remote** is on the same page. Double-clicking `server.py` while it runs hidden shows the QR code and link again.
 
 Files you send from your phone go to **Downloads ▸ PC Remote**. Put files in that folder to download them on your phone.
 

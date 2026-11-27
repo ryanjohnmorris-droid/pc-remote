@@ -954,6 +954,59 @@ def _stop_helpers():
 
 
 # ==========================================================================
+# Start with Windows (hidden, no black window) — uses the normal per-user
+# "Run at sign-in" list, the same place apps like Discord and Spotify use.
+# ==========================================================================
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+RUN_NAME = "PC Remote"
+BACKGROUND = "--background" in sys.argv
+
+
+def autostart_command():
+    exe = Path(sys.executable)
+    hidden = exe.with_name("pythonw.exe")   # pythonw = Python without a console window
+    return f'"{hidden if hidden.exists() else exe}" "{Path(__file__).resolve()}" --background'
+
+
+if IS_WINDOWS:
+    import winreg
+
+    def get_autostart():
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+                winreg.QueryValueEx(k, RUN_NAME)
+                return True
+        except OSError:
+            return False
+
+    def set_autostart(on):
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+            if on:
+                winreg.SetValueEx(k, RUN_NAME, 0, winreg.REG_SZ, autostart_command())
+            else:
+                try:
+                    winreg.DeleteValue(k, RUN_NAME)
+                except FileNotFoundError:
+                    pass
+else:
+    def get_autostart():
+        return FAKE.get("autostart", False)
+
+    def set_autostart(on):
+        FAKE["autostart"] = bool(on)
+        _log("autostart", bool(on), autostart_command())
+
+
+def quit_soon():
+    """Stop PC Remote (after the phone has had its answer)."""
+    def bye():
+        time.sleep(0.5)
+        release_keys()
+        os._exit(0)
+    threading.Thread(target=bye, daemon=True).start()
+
+
+# ==========================================================================
 # Sleep timer
 # ==========================================================================
 TIMER = {"t": None, "action": None, "ends": 0.0}
@@ -1170,6 +1223,10 @@ def run_command(c):
             pass
     elif t == "win_normal":
         normal_size()
+    elif t == "autostart":
+        set_autostart(bool(c.get("on")))
+    elif t == "quit":
+        quit_soon()
     elif t == "button_run":
         run_button(clamp(c.get("i", -1), -1, 1000))
     elif t == "buttons_save":
@@ -1749,7 +1806,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(load_buttons())
             if path == "/api/info":
                 return self._json({"name": socket.gethostname(), "version": VERSION,
-                                   "dryRun": not IS_WINDOWS})
+                                   "dryRun": not IS_WINDOWS, "autostart": get_autostart(),
+                                   "background": BACKGROUND})
         except Exception as e:
             return self._reply(500, str(e).encode())
 
@@ -1802,18 +1860,7 @@ def lan_ip():
         s.close()
 
 
-def main():
-    n_apps = scan_apps()
-    try:
-        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    except OSError:
-        print(f"\n PC Remote is already running (port {PORT} is in use).")
-        print(" Close the other PC Remote window first, then try again.")
-        input("\n Press Enter to close...")
-        return
-    url = f"http://{lan_ip()}:{PORT}/?k={KEY}"
-    print("=" * 62)
-    print(" PC Remote " + VERSION + " is running" + ("" if IS_WINDOWS else "  (DRY RUN - not Windows)"))
+def show_connect_info(url):
     print(" Scan this with your phone camera (phone on the same Wi-Fi):\n")
     try:
         print(qr_text(url))
@@ -1821,10 +1868,44 @@ def main():
         pass
     print("\n Or type this link into your phone's browser:\n")
     print("   " + url + "\n")
+
+
+def main():
+    url = f"http://{lan_ip()}:{PORT}/?k={KEY}"
+    try:
+        server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    except OSError:
+        if BACKGROUND:   # started at sign-in, but it's already running: nothing to do
+            return
+        print("=" * 62)
+        print(" PC Remote is already running" + (" in the background." if get_autostart() else "."))
+        show_connect_info(url)
+        print(" (To stop it: phone app > More > Settings > Stop PC Remote.)")
+        print("=" * 62)
+        try:
+            input("\n Press Enter to close this window...")
+        except (EOFError, RuntimeError):
+            pass
+        return
+    n_apps = scan_apps()
+    if BACKGROUND:       # hidden: no window to print to
+        try:
+            server.serve_forever()
+        finally:
+            release_keys()
+        return
+    print("=" * 62)
+    print(" PC Remote " + VERSION + " is running" + ("" if IS_WINDOWS else "  (DRY RUN - not Windows)"))
+    show_connect_info(url)
     print(f" Then add it to your Home Screen.   Apps found: {n_apps}")
     print(f" Files from your phone go to: {SHARE_DIR}")
     if not DPI_OK:
         print(" Note: display scaling could not be set; screen taps may be slightly off.")
+    if get_autostart():
+        print(" Starts automatically (hidden) when you sign in to Windows.")
+    else:
+        print(" Tip: to start it automatically with the PC, turn on")
+        print("      phone app > More > Settings > Start when the PC turns on.")
     print(" Keep this window open. Press Ctrl+C to stop.")
     print("=" * 62, flush=True)
     try:
